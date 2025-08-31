@@ -1,6 +1,4 @@
 class Board:
-
-
     def __init__(self):
         self.__posiciones__ = [[] for _ in range(24)]
         self.__barra__ = {"blanco": [], "negro": []}
@@ -33,3 +31,16 @@ class Board:
                 self.quitar_ficha(destino)
                 self.__barra__[color_capturado].append(color_capturado)
             self.agregar_ficha(destino, ficha)
+    def es_movimiento_legal(self, origen, destino, color):
+        if origen < 0 or origen > 23 or destino < 0 or destino > 23:
+            return False
+        if not self.__posiciones__[origen]:
+            return False
+        if self.__posiciones__[origen][-1] != color:
+            return False
+        destino_fichas = self.__posiciones__[destino]
+        if destino_fichas and destino_fichas[0] != color and len(destino_fichas) > 1:
+            return False
+        if self.__barra__[color]:
+            return False
+        return True
