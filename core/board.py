@@ -27,4 +27,9 @@ class Board:
     def mover_ficha(self, origen, destino):
         ficha = self.quitar_ficha(origen)
         if ficha:
-            self.agregar_ficha(destino, ficha)  
+            destino_fichas = self.__posiciones__[destino]
+            if destino_fichas and len(destino_fichas) == 1 and destino_fichas[0] != ficha:
+                color_capturado = destino_fichas[0]
+                self.quitar_ficha(destino)
+                self.__barra__[color_capturado].append(color_capturado)
+            self.agregar_ficha(destino, ficha)
