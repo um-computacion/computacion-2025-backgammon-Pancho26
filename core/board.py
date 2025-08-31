@@ -1,5 +1,6 @@
 class Board:
 
+
     def __init__(self):
         self.__posiciones__ = [[] for _ in range(24)]
         self.__barra__ = {"blanco": [], "negro": []}
@@ -23,3 +24,7 @@ class Board:
         if self.__posiciones__[punto]:
             return self.__posiciones__[punto].pop()
         return None
+    def mover_ficha(self, origen, destino):
+        ficha = self.quitar_ficha(origen)
+        if ficha:
+            self.agregar_ficha(destino, ficha)  
