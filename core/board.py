@@ -1,4 +1,5 @@
 class Board:
+ 
    
     def __init__(self):
         self.__posiciones__ = [[] for _ in range(24)]
@@ -73,3 +74,8 @@ class Board:
             return tirada - 1
         else:
             return 24 - tirada
+
+    def bornear_ficha(self, punto, color):
+        ficha = self.quitar_ficha(punto)
+        if ficha == color:
+            self.__fichas_fuera__[color].append(ficha)
