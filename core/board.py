@@ -1,4 +1,5 @@
 class Board:
+   
     def __init__(self):
         self.__posiciones__ = [[] for _ in range(24)]
         self.__barra__ = {"blanco": [], "negro": []}
@@ -44,3 +45,31 @@ class Board:
         if self.__barra__[color]:
             return False
         return True
+ 
+
+    def puede_mover(self, color, tiradas):
+        if self.__barra__[color]:
+            origenes = [-1]  
+        else:
+            origenes = [i for i in range(24) if self.__posiciones__[i] and self.__posiciones__[i][-1] == color]
+        for origen in origenes:
+            for tirada in tiradas:
+                if origen == -1:
+                    destino = self.calcular_destino_barra(color, tirada)
+                else:
+                    destino = self.calcular_destino(origen, color, tirada)
+                if 0 <= destino < 24 and self.es_movimiento_legal(origen if origen != -1 else destino, destino, color):
+                    return True
+        return False
+
+    def calcular_destino(self, origen, color, tirada):
+        if color == "blanco":
+            return origen + tirada
+        else:
+            return origen - tirada
+
+    def calcular_destino_barra(self, color, tirada):
+        if color == "blanco":
+            return tirada - 1
+        else:
+            return 24 - tirada
