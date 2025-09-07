@@ -1,13 +1,22 @@
 class Board:
+    """
+    Representa el tablero de Backgammon con 24 puntos, barra y fichas fuera.
+    """
  
    
     def __init__(self):
+        """
+        Inicializa el tablero, la barra y las fichas fuera. Coloca las fichas en posiciones estándar.
+        """
         self.__posiciones__ = [[] for _ in range(24)]
         self.__barra__ = {"blanco": [], "negro": []}
         self.__fichas_fuera__ = {"blanco": [], "negro": []}
         self.inicializar_posiciones()
 
     def inicializar_posiciones(self):
+        """
+        Coloca las fichas en las posiciones iniciales estándar de Backgammon.
+        """
         self.__posiciones__[0]  = ["blanco"] * 2
         self.__posiciones__[11] = ["blanco"] * 5
         self.__posiciones__[16] = ["blanco"] * 3
@@ -18,13 +27,32 @@ class Board:
         self.__posiciones__[7]  = ["negro"] * 3
         self.__posiciones__[5]  = ["negro"] * 5
     def agregar_ficha(self, punto, color):
+        """
+        Agrega una ficha del color dado al punto especificado.
+        Args:
+            punto (int): Índice del punto en el tablero.
+            color (str): Color de la ficha a agregar.
+        """
         self.__posiciones__[punto].append(color)
 
     def quitar_ficha(self, punto):
+        """
+        Quita y retorna la ficha superior del punto especificado.
+        Args:
+            punto (int): Índice del punto en el tablero.
+        Returns:
+            str or None: Color de la ficha quitada o None si no hay fichas.
+        """
         if self.__posiciones__[punto]:
             return self.__posiciones__[punto].pop()
         return None
     def mover_ficha(self, origen, destino):
+        """
+        Mueve una ficha del punto de origen al destino, manejando captura si corresponde.
+        Args:
+            origen (int): Índice del punto de origen.
+            destino (int): Índice del punto de destino.
+        """
         ficha = self.quitar_ficha(origen)
         if ficha:
             destino_fichas = self.__posiciones__[destino]
@@ -34,6 +62,15 @@ class Board:
                 self.__barra__[color_capturado].append(color_capturado)
             self.agregar_ficha(destino, ficha)
     def es_movimiento_legal(self, origen, destino, color):
+        """
+        Verifica si un movimiento es legal según las reglas de Backgammon.
+        Args:
+            origen (int): Índice del punto de origen.
+            destino (int): Índice del punto de destino.
+            color (str): Color del jugador.
+        Returns:
+            bool: True si el movimiento es legal, False si no.
+        """
         if origen < 0 or origen > 23 or destino < 0 or destino > 23:
             return False
         if not self.__posiciones__[origen]:
@@ -49,6 +86,14 @@ class Board:
  
 
     def puede_mover(self, color, tiradas):
+        """
+        Verifica si el jugador puede realizar al menos un movimiento legal con las tiradas dadas.
+        Args:
+            color (str): Color del jugador.
+            tiradas (list): Lista de valores de los dados.
+        Returns:
+            bool: True si puede mover, False si no.
+        """
         if self.__barra__[color]:
             origenes = [-1]  
         else:
@@ -64,18 +109,41 @@ class Board:
         return False
 
     def calcular_destino(self, origen, color, tirada):
+        """
+        Calcula el punto de destino para una ficha según el color y la tirada.
+        Args:
+            origen (int): Índice del punto de origen.
+            color (str): Color del jugador.
+            tirada (int): Valor del dado.
+        Returns:
+            int: Índice del punto de destino.
+        """
         if color == "blanco":
             return origen + tirada
         else:
             return origen - tirada
 
     def calcular_destino_barra(self, color, tirada):
+        """
+        Calcula el punto de destino para una ficha que reingresa desde la barra.
+        Args:
+            color (str): Color del jugador.
+            tirada (int): Valor del dado.
+        Returns:
+            int: Índice del punto de destino.
+        """
         if color == "blanco":
             return tirada - 1
         else:
             return 24 - tirada
 
     def bornear_ficha(self, punto, color):
+        """
+        Saca una ficha del tablero y la agrega a las fichas fuera del jugador si corresponde.
+        Args:
+            punto (int): Índice del punto en el tablero.
+            color (str): Color del jugador.
+        """
         ficha = self.quitar_ficha(punto)
         if ficha == color:
             self.__fichas_fuera__[color].append(ficha)
