@@ -14,3 +14,7 @@ class Dice:
 
     def es_doble(self):
         return self.__valor1__ == self.__valor2__
+    
+
+    def es_doble(self):
+        return self.__valor1__ == self.__valor2__
