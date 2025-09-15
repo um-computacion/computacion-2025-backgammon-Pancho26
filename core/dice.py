@@ -1,5 +1,7 @@
 import random
 
+import random
+
 class Dice:
     def __init__(self):
         self.__valor1__ = None
@@ -10,11 +12,9 @@ class Dice:
         self.__valor2__ = random.randint(1, 6)
 
     def obtener_valores(self):
-        return (self.__valor1__, self.__valor2__)
-
-    def es_doble(self):
-        return self.__valor1__ == self.__valor2__
-    
+        if self.es_doble():
+            return [self.__valor1__] * 4
+        return [self.__valor1__, self.__valor2__]
 
     def es_doble(self):
         return self.__valor1__ == self.__valor2__
