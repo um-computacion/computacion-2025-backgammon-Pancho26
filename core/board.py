@@ -1,149 +1,168 @@
+BLANCO = "blanco"
+NEGRO = "negro"
+
 class Board:
     """
     Representa el tablero de Backgammon con 24 puntos, barra y fichas fuera.
     """
- 
-   
+
     def __init__(self):
         """
         Inicializa el tablero, la barra y las fichas fuera. Coloca las fichas en posiciones estándar.
         """
         self.__posiciones__ = [[] for _ in range(24)]
-        self.__barra__ = {"blanco": [], "negro": []}
-        self.__fichas_fuera__ = {"blanco": [], "negro": []}
+        self.__barra__ = {BLANCO: [], NEGRO: []}
+        self.__fichas_fuera__ = {BLANCO: [], NEGRO: []}
         self.inicializar_posiciones()
 
     def inicializar_posiciones(self):
-        """
-        Coloca las fichas en las posiciones iniciales estándar de Backgammon.
-        """
-        self.__posiciones__[0]  = ["blanco"] * 2
-        self.__posiciones__[11] = ["blanco"] * 5
-        self.__posiciones__[16] = ["blanco"] * 3
-        self.__posiciones__[18] = ["blanco"] * 5
+        # Blancas
+        self.__posiciones__[0]  = [BLANCO] * 2
+        self.__posiciones__[11] = [BLANCO] * 5
+        self.__posiciones__[16] = [BLANCO] * 3
+        self.__posiciones__[18] = [BLANCO] * 5
+        # Negras
+        self.__posiciones__[23] = [NEGRO] * 2
+        self.__posiciones__[12] = [NEGRO] * 5
+        self.__posiciones__[7]  = [NEGRO] * 3
+        self.__posiciones__[5]  = [NEGRO] * 5
 
-        self.__posiciones__[23] = ["negro"] * 2
-        self.__posiciones__[12] = ["negro"] * 5
-        self.__posiciones__[7]  = ["negro"] * 3
-        self.__posiciones__[5]  = ["negro"] * 5
     def agregar_ficha(self, punto, color):
-        """
-        Agrega una ficha del color dado al punto especificado.
-        Args:
-            punto (int): Índice del punto en el tablero.
-            color (str): Color de la ficha a agregar.
-        """
+        """Agrega una ficha del color indicado al punto dado."""
         self.__posiciones__[punto].append(color)
 
     def quitar_ficha(self, punto):
-        """
-        Quita y retorna la ficha superior del punto especificado.
-        Args:
-            punto (int): Índice del punto en el tablero.
-        Returns:
-            str or None: Color de la ficha quitada o None si no hay fichas.
-        """
+        """Quita y devuelve la ficha superior del punto o None si está vacío."""
         if self.__posiciones__[punto]:
             return self.__posiciones__[punto].pop()
         return None
+
     def mover_ficha(self, origen, destino):
-        """
-        Mueve una ficha del punto de origen al destino, manejando captura si corresponde.
-        Args:
-            origen (int): Índice del punto de origen.
-            destino (int): Índice del punto de destino.
-        """
+        """Mueve una ficha del origen al destino manejando capturas si corresponde."""
         ficha = self.quitar_ficha(origen)
-        if ficha:
-            destino_fichas = self.__posiciones__[destino]
-            if destino_fichas and len(destino_fichas) == 1 and destino_fichas[0] != ficha:
-                color_capturado = destino_fichas[0]
-                self.quitar_ficha(destino)
-                self.__barra__[color_capturado].append(color_capturado)
-            self.agregar_ficha(destino, ficha)
+        if not ficha:
+            return
+        destino_fichas = self.__posiciones__[destino]
+      
+        if destino_fichas and len(destino_fichas) == 1 and destino_fichas[0] != ficha:
+            capturado = self.__posiciones__[destino].pop()
+            self.__barra__[capturado].append(capturado)
+        self.agregar_ficha(destino, ficha)
+
     def es_movimiento_legal(self, origen, destino, color):
-        """
-        Verifica si un movimiento es legal según las reglas de Backgammon.
-        Args:
-            origen (int): Índice del punto de origen.
-            destino (int): Índice del punto de destino.
-            color (str): Color del jugador.
-        Returns:
-            bool: True si el movimiento es legal, False si no.
-        """
-        if origen < 0 or origen > 23 or destino < 0 or destino > 23:
+        """Verifica si el movimiento propuesto es legal para el color dado."""
+        if destino < 0 or destino > 23:
+            return False
+
+        
+        if self.__barra__[color] and origen != -1:
+            return False
+
+       
+        if origen == -1:
+            destino_fichas = self.__posiciones__[destino]
+            
+            if destino_fichas and destino_fichas[0] != color and len(destino_fichas) > 1:
+                return False
+            return True
+
+        
+        if origen < 0 or origen > 23:
             return False
         if not self.__posiciones__[origen]:
             return False
         if self.__posiciones__[origen][-1] != color:
             return False
+
         destino_fichas = self.__posiciones__[destino]
+       
         if destino_fichas and destino_fichas[0] != color and len(destino_fichas) > 1:
             return False
-        if self.__barra__[color]:
-            return False
+
         return True
- 
 
     def puede_mover(self, color, tiradas):
-        """
-        Verifica si el jugador puede realizar al menos un movimiento legal con las tiradas dadas.
-        Args:
-            color (str): Color del jugador.
-            tiradas (list): Lista de valores de los dados.
-        Returns:
-            bool: True si puede mover, False si no.
-        """
+        """Indica si el jugador puede realizar algún movimiento con las tiradas dadas."""
+        
         if self.__barra__[color]:
-            origenes = [-1]  
+            origenes = [-1]
         else:
-            origenes = [i for i in range(24) if self.__posiciones__[i] and self.__posiciones__[i][-1] == color]
+            origenes = [
+                i for i in range(24)
+                if self.__posiciones__[i] and self.__posiciones__[i][-1] == color
+            ]
+
         for origen in origenes:
             for tirada in tiradas:
-                if origen == -1:
-                    destino = self.calcular_destino_barra(color, tirada)
-                else:
-                    destino = self.calcular_destino(origen, color, tirada)
-                if 0 <= destino < 24 and self.es_movimiento_legal(origen if origen != -1 else destino, destino, color):
+                destino = self.calcular_destino_barra(color, tirada) if origen == -1 else self.calcular_destino(origen, color, tirada)
+                if 0 <= destino < 24 and self.es_movimiento_legal(origen, destino, color):
                     return True
         return False
 
     def calcular_destino(self, origen, color, tirada):
-        """
-        Calcula el punto de destino para una ficha según el color y la tirada.
-        Args:
-            origen (int): Índice del punto de origen.
-            color (str): Color del jugador.
-            tirada (int): Valor del dado.
-        Returns:
-            int: Índice del punto de destino.
-        """
-        if color == "blanco":
+        if color == BLANCO:
             return origen + tirada
         else:
             return origen - tirada
 
     def calcular_destino_barra(self, color, tirada):
-        """
-        Calcula el punto de destino para una ficha que reingresa desde la barra.
-        Args:
-            color (str): Color del jugador.
-            tirada (int): Valor del dado.
-        Returns:
-            int: Índice del punto de destino.
-        """
-        if color == "blanco":
+        if color == BLANCO:
             return tirada - 1
         else:
             return 24 - tirada
 
     def bornear_ficha(self, punto, color):
-        """
-        Saca una ficha del tablero y la agrega a las fichas fuera del jugador si corresponde.
-        Args:
-            punto (int): Índice del punto en el tablero.
-            color (str): Color del jugador.
-        """
         ficha = self.quitar_ficha(punto)
         if ficha == color:
             self.__fichas_fuera__[color].append(ficha)
+
+   
+
+    def obtener_estado_puntos(self):
+        estado = []
+        for pila in self.__posiciones__:
+            if pila:
+                estado.append({"color": pila[0], "cantidad": len(pila)})
+            else:
+                estado.append({"color": None, "cantidad": 0})
+        return estado
+
+    def obtener_punto(self, indice):
+        return list(self.__posiciones__[indice])
+
+    def obtener_barra(self, color=None):
+        if color is None:
+            return {c: list(p) for c, p in self.__barra__.items()}
+        return list(self.__barra__[color])
+
+    def obtener_fuera(self, color=None):
+        if color is None:
+            return {c: list(p) for c, p in self.__fichas_fuera__.items()}
+        return list(self.__fichas_fuera__[color])
+
+    
+
+    def mover_desde_barra(self, color, destino):
+        """Mueve una ficha desde la barra al destino si el movimiento es válido."""
+        if not self.__barra__[color]:
+            return False
+        destino_fichas = self.__posiciones__[destino]
+        
+        if destino_fichas and destino_fichas[0] != color and len(destino_fichas) > 1:
+            return False
+        
+        self.__barra__[color].pop()
+        
+        if destino_fichas and len(destino_fichas) == 1 and destino_fichas[0] != color:
+            capturado = self.__posiciones__[destino].pop()
+            self.__barra__[capturado].append(capturado)
+       
+        self.__posiciones__[destino].append(color)
+        return True
+
+    def aplicar_movimiento(self, origen, destino, color):
+        """Aplica un movimiento desde el origen (o barra) hacia el destino."""
+        if origen == -1:
+            return self.mover_desde_barra(color, destino)
+        self.mover_ficha(origen, destino)
+        return True
