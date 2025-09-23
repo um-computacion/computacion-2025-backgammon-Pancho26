@@ -116,7 +116,71 @@ class Board:
         if ficha == color:
             self.__fichas_fuera__[color].append(ficha)
 
-   
+    def todos_en_casa(self, color):
+        """Devuelve True si todas las fichas del color están en su tablero interno y no hay en la barra."""
+        if self.__barra__[color]:
+            return False
+        if color == BLANCO:
+            for i, pila in enumerate(self.__posiciones__):
+                if any(f == BLANCO for f in pila) and not (18 <= i <= 23):
+                    return False
+        else:
+            for i, pila in enumerate(self.__posiciones__):
+                if any(f == NEGRO for f in pila) and not (0 <= i <= 5):
+                    return False
+        return True
+
+    def puede_bornear(self, origen, color, tirada):
+        """Valida si se puede bornear desde 'origen' con la 'tirada' dada."""
+        if origen < 0 or origen > 23:
+            return False
+        if not self.__posiciones__[origen] or self.__posiciones__[origen][-1] != color:
+            return False
+        if not self.todos_en_casa(color):
+            return False
+
+        if color == BLANCO:
+            destino = origen + tirada
+            if destino == 24:
+                return True
+            if destino > 23:
+                # Overroll: permitido solo si no hay blancas en puntos mayores a 'origen'
+                for i in range(origen + 1, 24):
+                    if any(f == BLANCO for f in self.__posiciones__[i]):
+                        return False
+                return True
+            return False
+        else:
+            destino = origen - tirada
+            if destino == -1:
+                return True
+            if destino < 0:
+                # Overroll: permitido solo si no hay negras en puntos menores a 'origen'
+                for i in range(0, origen):
+                    if any(f == NEGRO for f in self.__posiciones__[i]):
+                        return False
+                return True
+            return False
+
+    def bornear_si_valido(self, origen, color, tirada):
+        """Borneo si es legal según la tirada y devuelve True si se realizó."""
+        if not self.puede_bornear(origen, color, tirada):
+            return False
+        ficha = self.quitar_ficha(origen)
+        if ficha == color:
+            self.__fichas_fuera__[color].append(ficha)
+            return True
+        if ficha is not None:
+            self.agregar_ficha(origen, ficha)
+        return False
+
+    def contar_en_barra(self, color):
+        """Devuelve la cantidad de fichas del color en la barra."""
+        return len(self.__barra__[color])
+
+    def ha_ganado(self, color):
+        """Indica si el jugador ya borneó sus 15 fichas."""
+        return len(self.__fichas_fuera__[color]) >= 15
 
     def obtener_estado_puntos(self):
         estado = []
@@ -139,8 +203,6 @@ class Board:
         if color is None:
             return {c: list(p) for c, p in self.__fichas_fuera__.items()}
         return list(self.__fichas_fuera__[color])
-
-    
 
     def mover_desde_barra(self, color, destino):
         """Mueve una ficha desde la barra al destino si el movimiento es válido."""

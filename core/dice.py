@@ -99,4 +99,16 @@ class __Dice__:
             "restantes": list(self.__restantes__),
         }
 
+    def tirado(self):
+        """Indica si ya se tiró este turno."""
+        return self.__tirado__
+
+    def puede_consumir(self, valor):
+        """Devuelve True si 'valor' está entre los movimientos restantes."""
+        return valor in self.__restantes__
+
+    def valor_maximo(self):
+        """Devuelve el valor disponible más alto o None si no hay."""
+        return max(self.__restantes__) if self.__restantes__ else None
+
 Dice = __Dice__
