@@ -30,7 +30,7 @@ class TestDiceTirada(unittest.TestCase):
         self.assertIsNone(d.__valor1__)
         self.assertIsNone(d.__valor2__)
         self.assertFalse(d.quedan_movimientos())
-        d.tirar()  # no debe lanzar
+        d.tirar()  
 
 class TestDiceDoblesYValores(unittest.TestCase):
     def test_es_doble_false(self):
@@ -38,6 +38,7 @@ class TestDiceDoblesYValores(unittest.TestCase):
         d.__valor1__ = 2
         d.__valor2__ = 5
         self.assertFalse(d.es_doble())
+        d.__tirado__ = True  
         self.assertEqual(d.obtener_valores(), [2,5])
 
     def test_es_doble_true(self):
@@ -45,6 +46,7 @@ class TestDiceDoblesYValores(unittest.TestCase):
         d.__valor1__ = 4
         d.__valor2__ = 4
         self.assertTrue(d.es_doble())
+        d.__tirado__ = True  # necesario para que obtener_valores no devuelva []
         self.assertEqual(d.obtener_valores(), [4,4,4,4])
 
 class TestDiceMovimientosRestantes(unittest.TestCase):
@@ -106,6 +108,17 @@ class TestDiceConsumo(unittest.TestCase):
             d.consumir(5)
         self.assertFalse(d.quedan_movimientos())
 
+    def test_consumir_mas_de_lo_disponible(self):
+        d = Dice()
+        d.__valor1__ = 5
+        d.__valor2__ = 5
+        d.__tirado__ = True
+        d.__restantes__ = [5,5,5,5]
+        for _ in range(4):
+            d.consumir(5)
+        with self.assertRaises(ValueError):
+            d.consumir(5)
+
 class TestDiceDeterminismo(unittest.TestCase):
     def test_determinismo_misma_semilla(self):
         seed = 42
@@ -134,6 +147,42 @@ class TestDiceSerializacion(unittest.TestCase):
         self.assertTrue(estado["tirado"])
         self.assertEqual(estado["valores"], [6,6,6,6])
         self.assertEqual(estado["restantes"], [6,6,6,6])
+
+    def test_a_dict_normales(self):
+        d = Dice()
+        d.__valor1__ = 2
+        d.__valor2__ = 5
+        d.__tirado__ = True
+        d.__restantes__ = [2,5]
+        estado = d.a_dict()
+        self.assertTrue(estado["tirado"])
+        self.assertEqual(estado["valor1"], 2)
+        self.assertEqual(estado["valor2"], 5)
+        self.assertEqual(estado["valores"], [2,5])
+        self.assertEqual(estado["restantes"], [2,5])
+
+class TestDiceCoberturaAdicional(unittest.TestCase):
+    def test_es_doble_sin_valores(self):
+        d = Dice()
+        self.assertFalse(d.es_doble())
+
+    def test_quedan_movimientos_true_despues_de_tirar(self):
+        d = Dice()
+        d.tirar()
+        self.assertTrue(d.quedan_movimientos())
+        self.assertGreater(len(d.movimientos_restantes()), 0)
+
+    def test_tirada_doble_genera_cuatro_usos(self):
+        class FixedRng:
+            def __init__(self, seq):
+                self.seq = list(seq)
+            def randint(self, a, b):
+                return self.seq.pop(0)
+        d = Dice(FixedRng([3,3]))
+        d.tirar()
+        self.assertTrue(d.es_doble())
+        self.assertEqual(d.obtener_valores(), [3,3,3,3])
+        self.assertEqual(d.movimientos_restantes(), [3,3,3,3])
 
 if __name__ == "__main__":
     unittest.main()
