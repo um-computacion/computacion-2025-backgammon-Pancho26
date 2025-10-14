@@ -1,8 +1,36 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## Resumen
+- [0.3.0] - 2025-10-14: Completar con un resumen breve (por ejemplo: flujo de turnos, generación de movimientos, mejoras de Board/Dice, CLI/UI, docs y tests, fixes).
+- [0.2.0] - 2025-09-15: Clase Dice, métodos clave, tests y docs; ajustes menores y fixes de tirada.
+- [0.1.0] - 2025-09-07: Base del tablero (Board), movimientos, captura, borneo y tests.
 
-## [Unreleased]
+## [0.3.0] - 2025-10-14
+### Added
+- TODO: Lista todo lo nuevo (p. ej., clase Game/Turnos, generación de movimientos legales, comandos/CLI, validaciones, nuevas APIs, docs y tests).
+
+### Changed
+- TODO: Lista cambios en interfaces, firmas, comportamiento o refactors (p. ej., renombres, performance, estructura interna).
+
+### Fixed
+- TODO: Lista bugs corregidos (p. ej., validaciones de movimiento, estados inconsistentes, errores de serialización).
+
+## [0.2.0] - 2025-09-15
+### Added
+- Clase `__Dice__` (alias `Dice`) para gestionar tiradas de dados.
+- Métodos: `tirar`, `es_doble`, `obtener_valores`, `movimientos_restantes`,
+  `consumir`, `quedan_movimientos`, `reiniciar_turno`, `a_dict`.
+- Tests unitarios para estados iniciales, dobles, consumo, reinicio, determinismo y serialización.
+- Docstrings completos en `core/dice.py`.
+- Archivo de documentación `docs/dice.md`.
+
+### Changed
+- Ajuste de `obtener_valores()` para retornar [] si no se tiró y soportar lógica de tests que inspeccionan directamente atributos.
+- Estructura de valores restantes centralizada en `__restantes__`.
+
+### Fixed
+- Manejo de error al intentar tirar más de una vez en el mismo turno.
+- Validación de consumo antes de tirar.
 
 ## [0.1.0] - 2025-09-07
 ### Added
@@ -16,8 +44,8 @@ All notable changes to this project will be documented in this file.
 - Métodos para calcular destino de movimientos y reingreso desde la barra.
 - Método para verificar si el jugador puede mover.
 - Método para bornear fichas (sacar del tablero).
-- Test que cubran el codigo
-- El archivo __init__.py en la carpeta test
+- Test que cubran el código.
+- El archivo __init__.py en la carpeta test.
 
 ### Changed
 - Renombrados atributos de la clase `Board` para cumplir con la consigna de doble guion bajo.
