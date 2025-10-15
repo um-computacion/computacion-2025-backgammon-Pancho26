@@ -74,3 +74,109 @@ class FakeBoard(BoardPort):
         if diff <= 0:
             raise ValueError("Pasos inválidos (origen=destino).")
         return diff
+class TestGameBasico(unittest.TestCase):
+    def test_comenzar_turno_bloqueado_pasa(self):
+        board = FakeBoard(puede_mover_flag=False)
+        dice = FakeDice([3])
+        g = Game(board=board, dice=dice, jugador_inicial=BLANCO)
+        pudo = g.comenzar_turno()
+        self.assertFalse(pudo)
+        self.assertEqual(g.jugador_actual, NEGRO)  # pasó el turno
+
+    def test_comenzar_turno_con_movimientos(self):
+        board = FakeBoard(puede_mover_flag=True)
+        dice = FakeDice([3, 5])
+        g = Game(board=board, dice=dice, jugador_inicial=NEGRO)
+        pudo = g.comenzar_turno()
+        self.assertTrue(pudo)
+        self.assertEqual(g.jugador_actual, NEGRO)
+        self.assertEqual(g.movimientos_disponibles(), [3, 5])
+
+    def test_realizar_movimiento_consumo_y_ok(self):
+        board = FakeBoard(puede_mover_flag=True, mover_ok=True)
+        dice = FakeDice([3, 5])
+        g = Game(board=board, dice=dice, jugador_inicial=BLANCO)
+        self.assertTrue(g.comenzar_turno())
+        ok = g.realizar_movimiento(0, 3)  # pasos = 3
+        self.assertTrue(ok)
+        self.assertEqual(board.last_move, (BLANCO, 0, 3))
+        self.assertEqual(g.movimientos_disponibles(), [5])
+
+    def test_realizar_movimiento_sin_movimientos_lanza_error(self):
+        board = FakeBoard(puede_mover_flag=True, mover_ok=True)
+        dice = FakeDice([])  # sin dados en este turno
+        g = Game(board=board, dice=dice, jugador_inicial=BLANCO)
+        # No comenzamos turno; no hay movimientos restantes
+        with self.assertRaises(ValueError):
+            g.realizar_movimiento(0, 1)
+        self.assertEqual(board.move_calls, 0)
+
+    def test_realizar_movimiento_dado_no_coincide(self):
+        board = FakeBoard(puede_mover_flag=True, mover_ok=True)
+        dice = FakeDice([2])  # sólo dado 2 disponible
+        g = Game(board=board, dice=dice, jugador_inicial=BLANCO)
+        self.assertTrue(g.comenzar_turno())
+        # Intento de 0 -> 3 requiere dado 3, que no está
+        with self.assertRaises(ValueError):
+            g.realizar_movimiento(0, 3)
+        self.assertEqual(board.move_calls, 0)  # no llegó a llamar a mover
+
+    def test_realizar_movimiento_rechazado_por_board_no_consumir(self):
+        board = FakeBoard(puede_mover_flag=True, mover_ok=False)
+        dice = FakeDice([4])
+        g = Game(board=board, dice=dice, jugador_inicial=BLANCO)
+        self.assertTrue(g.comenzar_turno())
+        with self.assertRaises(ValueError):
+            g.realizar_movimiento(0, 4)  # pasos=4 coincide, pero el board rechaza
+        # No debe consumir el dado si el tablero rechaza
+        self.assertEqual(g.movimientos_disponibles(), [4])
+        self.assertEqual(board.move_calls, 1)
+
+    def test_movimiento_desde_barra_blanco(self):
+        board = FakeBoard(puede_mover_flag=True, mover_ok=True)
+        dice = FakeDice([6])
+        g = Game(board=board, dice=dice, jugador_inicial=BLANCO)
+        self.assertTrue(g.comenzar_turno())
+        ok = g.realizar_movimiento(-1, 5)  # reingreso blanco: destino 5 => pasos 6
+        self.assertTrue(ok)
+        self.assertEqual(board.last_move, (BLANCO, -1, 5))
+        self.assertEqual(g.movimientos_disponibles(), [])
+
+    def test_movimiento_desde_barra_negro(self):
+        board = FakeBoard(puede_mover_flag=True, mover_ok=True)
+        dice = FakeDice([6])
+        g = Game(board=board, dice=dice, jugador_inicial=NEGRO)
+        self.assertTrue(g.comenzar_turno())
+        ok = g.realizar_movimiento(-1, 18)  # reingreso negro: destino 18 => pasos 6
+        self.assertTrue(ok)
+        self.assertEqual(board.last_move, (NEGRO, -1, 18))
+        self.assertEqual(g.movimientos_disponibles(), [])
+
+    def test_terminar_turno_cambia_jugador_y_reinicia_dados(self):
+        board = FakeBoard(puede_mover_flag=True, mover_ok=True)
+        dice = FakeDice([1, 2])
+        g = Game(board=board, dice=dice, jugador_inicial=BLANCO)
+        self.assertTrue(g.comenzar_turno())
+        # Consumimos uno para verificar que luego se reinicia
+        g.realizar_movimiento(0, 1)
+        self.assertEqual(g.movimientos_disponibles(), [2])
+        g.terminar_turno()
+        self.assertEqual(g.jugador_actual, NEGRO)
+        # Reinició el turno de los dados (restaura a [1,2] por nuestro Fake)
+        self.assertEqual(g.movimientos_disponibles(), [1, 2])
+
+    def test_a_dict_estructura_minima(self):
+        board = FakeBoard(puede_mover_flag=True, mover_ok=True)
+        dice = FakeDice([3, 3, 3, 3])  # simular dobles
+        g = Game(board=board, dice=dice, jugador_inicial=BLANCO)
+        self.assertTrue(g.comenzar_turno())
+        data = g.a_dict()
+        self.assertIn("jugador_actual", data)
+        self.assertIn("dados", data)
+        self.assertIn("movimientos_disponibles", data)
+        self.assertEqual(data["jugador_actual"], BLANCO)
+        self.assertEqual(data["movimientos_disponibles"], [3, 3, 3, 3])
+
+
+if __name__ == "__main__":
+    unittest.main()
