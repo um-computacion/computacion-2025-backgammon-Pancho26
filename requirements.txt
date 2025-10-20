@@ -11,3 +11,4 @@ statsmodels
 lxml
 beautifulsoup4
 pylint
+pygame
