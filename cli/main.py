@@ -1,3 +1,9 @@
+import os, sys
+# Asegurar que el root del proyecto esté en sys.path para poder importar 'core'
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _PROJECT_ROOT not in sys.path:
+	 sys.path.insert(0, _PROJECT_ROOT)
+
 # Importar constantes con fallback a strings por si core no las expone
 try:
     from core import BLANCO, NEGRO
@@ -299,6 +305,48 @@ def ganador_val(game):
                 return v
     return None
 
+# NUEVO: interacción para mover inmediatamente tras tirar
+def _interactuar_movimientos(game):
+    if not tiradas_val(game) or not puede_mover_compat(game):
+        return
+    print("Ingresá los movimientos como: <origen> <destino> (origen=-1 para barra). Escribí 'fin' para terminar.")
+    while tiradas_val(game):
+        if not puede_mover_compat(game):
+            print("Sin movimientos. Se pasa el turno.")
+            fin_turno_compat(game)
+            break
+        try:
+            linea = input(f"[{turno_str(game)} mover] ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            break
+        if not linea:
+            continue
+        if linea.lower() in ("fin", "pass", "pasar"):
+            fin_turno_compat(game)
+            print(f"Turno de {turno_str(game)}.")
+            break
+        parts = linea.split()
+        if len(parts) != 2:
+            print("Uso: <origen> <destino> (origen=-1 para barra)")
+            continue
+        try:
+            origen = int(parts[0]); destino = int(parts[1])
+        except Exception:
+            print("Origen y destino deben ser enteros.")
+            continue
+
+        if mover_compat(game, origen, destino):
+            print("OK.")
+            print(tablero_compacto_str(game))
+            if fin_turno_compat(game):
+                print(f"Turno de {turno_str(game)}.")
+                break
+            else:
+                print(f"Tiradas restantes: {tiradas_str(game)}")
+        else:
+            print("Movimiento inválido (bloqueo o no coincide con dados).")
+
 def main() -> int:
     # Asegurar orden correcto: inicializar Game con un Board real
     # blanco = Player(nombre="Blancas", color=BLANCO)
@@ -362,6 +410,9 @@ def main() -> int:
                 elif not pudo:
                     # comenzar_turno devolvió False => pasó el turno
                     print(f"Turno de {turno_str(game)}.")
+                else:
+                    # NUEVO: pedir inmediatamente el movimiento
+                    _interactuar_movimientos(game)
         elif cmd == "mover":
             if len(args) != 2:
                 print("Uso: mover <origen> <destino> (origen=-1 para barra)")
