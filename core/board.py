@@ -1,3 +1,4 @@
+"""In-memory Backgammon board representation and basic rules/helpers."""
 from __future__ import annotations
 from typing import List, Dict, Optional
 
@@ -7,7 +8,7 @@ NEGRO = "negro"
 NUM_POINTS = 24
 HOME_RANGE = {
     BLANCO: range(18, 24),
-    NEGRO:  range(0, 6),    
+    NEGRO:  range(0, 6),
 }
 DIRECTION = {
     BLANCO: +1,
@@ -16,7 +17,9 @@ DIRECTION = {
 
 
 class Board:
-    
+    """Tablero con puntos, barra y borne-off, más utilidades de validación."""
+    # pylint: disable=too-many-public-methods
+
     def __init__(self) -> None:
         self._points: List[List[str]] = [[] for _ in range(NUM_POINTS)]
         self._bar: Dict[str, List[str]] = {BLANCO: [], NEGRO: []}
@@ -31,8 +34,12 @@ class Board:
         """Coloca las fichas en posiciones estándar de inicio."""
         # Reemplazar contenido en lugar de re-binder para mantener alias válidos
         self._points[:] = [[] for _ in range(NUM_POINTS)]
-        self._bar.clear(); self._bar[BLANCO] = []; self._bar[NEGRO] = []
-        self._borne_off.clear(); self._borne_off[BLANCO] = []; self._borne_off[NEGRO] = []
+        self._bar.clear()
+        self._bar[BLANCO] = []
+        self._bar[NEGRO] = []
+        self._borne_off.clear()
+        self._borne_off[BLANCO] = []
+        self._borne_off[NEGRO] = []
 
         self._points[0]  = [BLANCO] * 2
         self._points[11] = [BLANCO] * 5
@@ -44,13 +51,12 @@ class Board:
         self._points[7]  = [NEGRO] * 3
         self._points[5]  = [NEGRO] * 5
 
-   
     def stack_at(self, index: int) -> List[str]:
         """Copia de la pila en el punto `index` (0..23)."""
         self._require_point(index)
         return list(self._points[index])
 
-    def bar(self, color: Optional[str] = None) -> Dict[str, List[str]] | List[str]:
+    def bar(self, color: Optional[str] = None) -> Dict[str, List[str]] | List[str]:  # pylint: disable=disallowed-name
         """Copia de la(s) barra(s)."""
         if color is None:
             return {c: list(p) for c, p in self._bar.items()}
@@ -65,14 +71,17 @@ class Board:
         return list(self._borne_off[color])
 
     def bar_count(self, color: str) -> int:
+        """Cantidad de fichas en la barra para el color dado."""
         self._require_color(color)
         return len(self._bar[color])
 
     def borne_off_count(self, color: str) -> int:
+        """Cantidad de fichas borneadas (fuera) para el color dado."""
         self._require_color(color)
         return len(self._borne_off[color])
 
     def point_count(self, index: int) -> int:
+        """Cantidad de fichas en el punto indicado (0..23)."""
         self._require_point(index)
         return len(self._points[index])
 
@@ -100,7 +109,6 @@ class Board:
         self._require_color(color)
         return DIRECTION[color]
 
- 
     def add_to_point(self, index: int, color: str) -> None:
         """Agrega una ficha del `color` al punto `index`."""
         self._require_point(index)
@@ -226,9 +234,9 @@ class Board:
         """
         def count_color(c: str) -> int:
             points = sum(1 for pile in self._points for ch in pile if ch == c)
-            bar = len(self._bar[c])
+            bar_len = len(self._bar[c])  # evitar nombre desaconsejado
             off = len(self._borne_off[c])
-            return points + bar + off
+            return points + bar_len + off
 
         if color is None:
             return count_color(BLANCO) + count_color(NEGRO)
@@ -238,21 +246,22 @@ class Board:
     def clone(self) -> "Board":
         """Copia profunda liviana (para simulaciones/tests)."""
         nb = Board.__new__(Board)  # evita reset_to_start
+        # pylint: disable=protected-access
         nb._points = [list(p) for p in self._points]
         nb._bar = {c: list(p) for c, p in self._bar.items()}
         nb._borne_off = {c: list(p) for c, p in self._borne_off.items()}
-        # Mantener alias esperados por tests en el clon
         nb.__posiciones__ = nb._points
         nb.__barra__ = nb._bar
         nb.__fichas_fuera__ = nb._borne_off
         return nb
 
-  
     def _require_point(self, index: int) -> None:
-        if not (0 <= index < NUM_POINTS):
+        """Valida rango de punto (0..23)."""
+        if not 0 <= index < NUM_POINTS:
             raise IndexError(f"Punto fuera de rango: {index}")
 
     def _require_color(self, color: str) -> None:
+        """Valida color permitido."""
         if color not in (BLANCO, NEGRO):
             raise ValueError(f"Color inválido: {color}")
 
@@ -264,7 +273,7 @@ class Board:
         (No valida distancias/ dados, sólo bloqueo básico.)
         """
         self._require_color(color)
-        if not (0 <= destino < NUM_POINTS):
+        if not 0 <= destino < NUM_POINTS:
             return False
 
         def bloqueado(idx: int) -> bool:
@@ -278,7 +287,7 @@ class Board:
             return not bloqueado(destino)
 
         # Origen en tablero
-        if not (0 <= origen < NUM_POINTS):
+        if not 0 <= origen < NUM_POINTS:
             return False
         pila_origen = self._points[origen]
         if not pila_origen or pila_origen[0] != color:

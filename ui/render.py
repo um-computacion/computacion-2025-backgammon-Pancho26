@@ -33,7 +33,16 @@ class RenderizadorTablero:
         self.__fuente__ = fuente
         self.__tema__ = tema
 
-    def dibujar(self, geo, estado, indice_hover: Optional[int], btn_tirar_rect: Optional[pygame.Rect] = None, seleccionado: Optional[int] = None, puede_tirar: bool = True) -> None:
+    def dibujar(
+        self,
+        geo,
+        estado,
+        indice_hover: Optional[int],
+        btn_tirar_rect: Optional[pygame.Rect] = None,
+        seleccionado: Optional[int] = None,
+        puede_tirar: bool = True,
+        ganador: Optional[str] = None,  # NUEVO
+    ) -> None:
         """
         Dibuja el tablero completo.
 
@@ -194,7 +203,7 @@ class RenderizadorTablero:
         self.__pantalla__.blit(info1, (barra.centerx - info1.get_width() // 2, y0 + size + 6))
         self.__pantalla__.blit(info2, (barra.centerx - info2.get_width() // 2, y0 + size + 6 + info1.get_height()))
 
-        # NUEVO: botón "Tirar (R)" con estado habilitado/deshabilitado
+        # Botón "Tirar (R)" (se dibuja gris si puede_tirar==False)
         if btn_tirar_rect is not None:
             fill = (255, 215, 0) if puede_tirar else (150, 150, 150)
             pygame.draw.rect(self.__pantalla__, fill, btn_tirar_rect, border_radius=8)
@@ -204,4 +213,26 @@ class RenderizadorTablero:
             self.__pantalla__.blit(
                 label,
                 (btn_tirar_rect.centerx - label.get_width() // 2, btn_tirar_rect.centery - label.get_height() // 2),
+            )
+
+        # NUEVO: Overlay de ganador
+        if ganador:
+            # Fondo semi-transparente
+            overlay = pygame.Surface(self.__pantalla__.get_size(), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 160))
+            self.__pantalla__.blit(overlay, (0, 0))
+            # Cartel central
+            msg = f"¡Ganó {ganador}!"
+            texto = self.__fuente__.render(msg, True, (255, 255, 255))
+            cx = geo.__rect_tablero__.centerx
+            cy = geo.__rect_tablero__.centery
+            # Marco
+            box_w = max(260, texto.get_width() + 40)
+            box_h = 80
+            box = pygame.Rect(0, 0, box_w, box_h)
+            box.center = (cx, cy)
+            pygame.draw.rect(self.__pantalla__, (30, 30, 30), box, border_radius=10)
+            pygame.draw.rect(self.__pantalla__, t.__marco__, box, width=2, border_radius=10)
+            self.__pantalla__.blit(
+                texto, (box.centerx - texto.get_width() // 2, box.centery - texto.get_height() // 2)
             )
