@@ -71,6 +71,8 @@ class ControladorUI:
         self.__btn_tirar__: pygame.Rect = self.__calc_rect_boton_tirar__()
         # NUEVO: selección de origen (punto 1..24)
         self.__seleccion_origen__: Optional[int] = None
+        # NUEVO: ganador actual (None si no hay)
+        self.__ganador__: Optional[str] = None
 
     def __calc_rect_boton_tirar__(self) -> pygame.Rect:
         """
@@ -106,6 +108,10 @@ class ControladorUI:
         """
         Tira dos dados y los setea en el estado, si es posible.
         """
+        # Bloquear si ya hay ganador
+        if self.__ganador__ is not None:
+            print("La partida terminó. Reinicie para jugar de nuevo.")
+            return
         # NUEVO: bloquear si hay movimientos pendientes
         if self.__estado__ is not None and hasattr(self.__estado__, "hay_movimientos"):
             try:
@@ -148,6 +154,18 @@ class ControladorUI:
             restantes = getattr(self.__estado__, "__movimientos_pendientes__", [])
             return bool(restantes)
 
+    # NUEVO: utilidades de captura y victoria
+    def __evaluar_ganador__(self) -> None:
+        """
+        Si algún jugador llegó a 15 fichas fuera, fija __ganador__.
+        """
+        b = getattr(self.__estado__, "__fuera_blancas__", 0)
+        n = getattr(self.__estado__, "__fuera_negras__", 0)
+        if b >= 15:
+            self.__ganador__ = "BLANCAS"
+        elif n >= 15:
+            self.__ganador__ = "NEGRAS"
+
     def __procesar_evento__(self, evento: pygame.event.Event) -> bool:
         """
         Procesa un evento de Pygame.
@@ -162,6 +180,9 @@ class ControladorUI:
             return False
         if evento.type == pygame.KEYDOWN and evento.key == pygame.K_ESCAPE:
             return False
+        # Si hay ganador, ignorar clicks/teclas (salvo ESC/QUIT)
+        if self.__ganador__ is not None:
+            return True
         # NUEVO: tirar dados con 'R'
         if evento.type == pygame.KEYDOWN and evento.key == pygame.K_r:
             self.__tirar_dados__()
@@ -203,6 +224,8 @@ class ControladorUI:
                         self.__seleccion_origen__ = None
                     else:
                         print("Reingreso inválido con ese dado/entrada.")
+                # Tras reingresar, evaluar ganador
+                self.__evaluar_ganador__()
                 return True
 
             # Si no hay dados, pedir tirar primero
@@ -228,8 +251,17 @@ class ControladorUI:
                 if pasos is not None and pasos in pendientes:
                     if getattr(self.__estado__, "puede_mover", lambda d, p: False)(desde, pasos):
                         try:
+                            # NUEVO: snapshot de barra rival para detectar captura
+                            oponente = "BLANCAS" if turno == "NEGRAS" else "NEGRAS"
+                            bar_rival_antes = getattr(self.__estado__, "__bar_blancas__" if oponente == "BLANCAS" else "__bar_negras__", 0)
                             getattr(self.__estado__, "mover")(desde, pasos)
                             self.__seleccion_origen__ = None
+                            # Mensaje de captura si la barra rival aumentó
+                            bar_rival_desp = getattr(self.__estado__, "__bar_blancas__" if oponente == "BLANCAS" else "__bar_negras__", 0)
+                            if bar_rival_desp > bar_rival_antes:
+                                print("¡Captura! Comiste una ficha rival.")
+                            # Evaluar ganador tras mover
+                            self.__evaluar_ganador__()
                         except Exception as ex:
                             print(f"No se pudo mover: {ex}")
                     else:
@@ -259,12 +291,12 @@ class ControladorUI:
                     corriendo = False
                     break
 
-            # NUEVO: pasar selección y estado de "puede tirar"
+            # NUEVO: pasar selección y estado de "puede tirar"; si hay ganador, no puede tirar
             puede_tirar = True
             try:
-                puede_tirar = not self.__hay_movimientos__()
+                puede_tirar = (self.__ganador__ is None) and (not self.__hay_movimientos__())
             except Exception:
-                pass
+                puede_tirar = (self.__ganador__ is None)
             self.__render__.dibujar(
                 self.__geo__,
                 self.__estado__,
@@ -272,6 +304,7 @@ class ControladorUI:
                 self.__btn_tirar__,
                 self.__seleccion_origen__,
                 puede_tirar,
+                self.__ganador__,  # NUEVO: ganador para overlay
             )
             pygame.display.flip()
             self.__reloj__.tick(self.__fps__)
