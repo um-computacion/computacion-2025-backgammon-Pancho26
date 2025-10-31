@@ -69,6 +69,8 @@ class ControladorUI:
         self.__indice_hover__: Optional[int] = None
         # NUEVO: rect del botón "Tirar"
         self.__btn_tirar__: pygame.Rect = self.__calc_rect_boton_tirar__()
+        # NUEVO: botón "Sacar (S)"
+        self.__btn_sacar__: pygame.Rect = self.__calc_rect_boton_sacar__()
         # NUEVO: selección de origen (punto 1..24)
         self.__seleccion_origen__: Optional[int] = None
         # NUEVO: ganador actual (None si no hay)
@@ -83,6 +85,20 @@ class ControladorUI:
         h = 36
         x = int(barra.centerx - w / 2)
         y = int(barra.bottom - h - 12)
+        return pygame.Rect(x, y, w, h)
+
+    # NUEVO: rect del botón 'Sacar (S)' posicionado sobre el botón 'Tirar'
+    def __calc_rect_boton_sacar__(self) -> pygame.Rect:
+        barra = self.__geo__.__rect_barra__
+        w = max(110, min(180, int(barra.width * 0.9)))
+        h = 36
+        # Ubicar encima del botón tirar con un margen
+        ref = getattr(self, "__btn_tirar__", None)
+        x = int(barra.centerx - w / 2)
+        if isinstance(ref, pygame.Rect):
+            y = int(ref.top - h - 8)
+        else:
+            y = int(barra.bottom - (2 * h) - 20)
         return pygame.Rect(x, y, w, h)
 
     def __redimensionar__(self, nuevo_ancho: int, nuevo_alto: int) -> None:
@@ -103,6 +119,8 @@ class ControladorUI:
         self.__deteccion__.actualizar_triangulos(self.__geo__.__triangulos__)
         # NUEVO: actualizar rect del botón al redimensionar
         self.__btn_tirar__ = self.__calc_rect_boton_tirar__()
+        # NUEVO: actualizar botón sacar
+        self.__btn_sacar__ = self.__calc_rect_boton_sacar__()
 
     def __tirar_dados__(self) -> None:
         """
@@ -166,6 +184,80 @@ class ControladorUI:
         elif n >= 15:
             self.__ganador__ = "NEGRAS"
 
+    # NUEVO: obtener dados a mostrar (pendientes o última tirada)
+    def __dados_visibles__(self) -> list[int]:
+        """
+        Retorna una lista de valores de dados para mostrar en pantalla.
+        - Si hay movimientos pendientes, se muestran esos valores (incluye dobles).
+        - Si no, se intenta mostrar la última tirada (__dados__), ignorando ceros.
+        """
+        if self.__estado__ is None:
+            return []
+        # Primero, movimientos pendientes
+        try:
+            pendientes = list(getattr(self.__estado__, "__movimientos_pendientes__", []))
+            if pendientes:
+                return pendientes
+        except Exception:
+            pass
+        # Fallback: última tirada (__dados__ = (d1, d2))
+        try:
+            d1, d2 = getattr(self.__estado__, "__dados__", (0, 0))
+            vals = [v for v in (int(d1), int(d2)) if 1 <= v <= 6]
+            return vals
+        except Exception:
+            return []
+
+    # NUEVO: overlay de dados (siempre por encima del tablero)
+    def __dibujar_dados_overlay__(self) -> None:
+        """
+        Dibuja un overlay con los valores de dados visibles encima de todo
+        para asegurar legibilidad incluso tras capturas.
+        """
+        vals = self.__dados_visibles__()
+        if not vals:
+            return
+
+        # Área de referencia: barra central
+        barra = self.__geo__.__rect_barra__
+        surface = self.__pantalla__
+
+        # Estilo de alto contraste
+        bg_color = (250, 250, 210)      # amarillo pálido (contraste alto)
+        border_color = (10, 10, 10)     # borde negro
+        text_color = (15, 15, 15)       # texto oscuro
+
+        # Layout simple: cajitas horizontales centradas en la barra
+        w, h = 32, 32
+        gap = 8
+        total_w = len(vals) * w + (len(vals) - 1) * gap
+        x0 = max(barra.left + 6, int(barra.centerx - total_w / 2))
+        y0 = max(barra.top + 10, int(barra.centery - h / 2))
+
+        for i, v in enumerate(vals):
+            rx = x0 + i * (w + gap)
+            rect = pygame.Rect(rx, y0, w, h)
+            # Fondo y borde
+            pygame.draw.rect(surface, bg_color, rect, border_radius=6)
+            pygame.draw.rect(surface, border_color, rect, width=2, border_radius=6)
+            # Texto centrado
+            text = self.__fuente__.render(str(v), True, text_color)
+            surface.blit(text, text.get_rect(center=rect.center))
+
+    # NUEVO: dibuja el botón 'Sacar (S)' como overlay encima de todo
+    def __dibujar_boton_sacar_overlay__(self) -> None:
+        rect = self.__btn_sacar__
+        enabled = self.__puede_sacar__()
+        surface = self.__pantalla__
+        # Colores de alto contraste
+        bg = (80, 170, 90) if enabled else (150, 150, 150)
+        border = (20, 20, 20)
+        txt = (10, 10, 10)
+        pygame.draw.rect(surface, bg, rect, border_radius=8)
+        pygame.draw.rect(surface, border, rect, width=2, border_radius=8)
+        label = self.__fuente__.render("Sacar (S)", True, txt)
+        surface.blit(label, label.get_rect(center=rect.center))
+
     def __procesar_evento__(self, evento: pygame.event.Event) -> bool:
         """
         Procesa un evento de Pygame.
@@ -183,6 +275,9 @@ class ControladorUI:
         # Si hay ganador, ignorar clicks/teclas (salvo ESC/QUIT)
         if self.__ganador__ is not None:
             return True
+        # NUEVO: atajo 'S' para sacar borne-off
+        if evento.type == pygame.KEYDOWN and evento.key == pygame.K_s:
+            self.__intentar_sacar__()
         # NUEVO: tirar dados con 'R'
         if evento.type == pygame.KEYDOWN and evento.key == pygame.K_r:
             self.__tirar_dados__()
@@ -194,6 +289,10 @@ class ControladorUI:
             # Click en botón 'Tirar'
             if self.__btn_tirar__.collidepoint(evento.pos):
                 self.__tirar_dados__()
+                return True
+            # NUEVO: click en botón 'Sacar'
+            if self.__btn_sacar__.collidepoint(evento.pos):
+                self.__intentar_sacar__()
                 return True
 
             if self.__estado__ is None:
@@ -274,6 +373,57 @@ class ControladorUI:
                         print("El destino no coincide con ningún dado disponible.")
         return True
 
+    # NUEVO: pasos para borne-off desde un punto según turno (sin validar reglas)
+    def __pasos_borne_off__(self, desde: int) -> Optional[int]:
+        t = self.__turno_actual__()
+        if t == "BLANCAS":
+            # Casa: 1..6, distancia exacta hasta salir (0) = desde
+            return desde if 1 <= desde <= 6 else None
+        # NEGRAS: casa 19..24, distancia exacta hasta 25 = 25 - desde
+        return (25 - desde) if 19 <= desde <= 24 else None
+
+    # NUEVO: verifica si actualmente se puede "sacar" la ficha seleccionada
+    def __puede_sacar__(self) -> bool:
+        if self.__estado__ is None or self.__seleccion_origen__ is None:
+            return False
+        try:
+            pasos = self.__pasos_borne_off__(self.__seleccion_origen__)
+            if pasos is None:
+                return False
+            pendientes = list(getattr(self.__estado__, "__movimientos_pendientes__", []))
+            if pasos not in pendientes:
+                return False
+            # Validación completa delegada al estado
+            return bool(getattr(self.__estado__, "puede_mover", lambda d, p: False)(self.__seleccion_origen__, pasos))
+        except Exception:
+            return False
+
+    # NUEVO: intentar ejecutar el borneo (click botón o tecla S)
+    def __intentar_sacar__(self) -> None:
+        if self.__ganador__ is not None or self.__estado__ is None:
+            return
+        # Requiere tener dados y un origen seleccionado
+        if not self.__hay_movimientos__():
+            print("No hay dados disponibles para sacar. Tirá primero.")
+            return
+        if self.__seleccion_origen__ is None:
+            print("Seleccioná una punta en tu casa para sacar.")
+            return
+        pasos = self.__pasos_borne_off__(self.__seleccion_origen__)
+        if pasos is None:
+            print("Ese punto no pertenece a tu casa.")
+            return
+        try:
+            if getattr(self.__estado__, "puede_mover", lambda d, p: False)(self.__seleccion_origen__, pasos):
+                getattr(self.__estado__, "mover")(self.__seleccion_origen__, pasos)
+                self.__seleccion_origen__ = None
+                # Evaluar ganador tras bornear
+                self.__evaluar_ganador__()
+            else:
+                print("No podés sacar con los dados actuales.")
+        except Exception as ex:
+            print(f"No se pudo sacar: {ex}")
+
     def ejecutar(self) -> None:
         """
         Loop principal: procesa eventos y dibuja.
@@ -306,6 +456,13 @@ class ControladorUI:
                 puede_tirar,
                 self.__ganador__,  # NUEVO: ganador para overlay
             )
+            # NUEVO: dibujar botón 'Sacar' por encima de todo
+            try:
+                self.__dibujar_boton_sacar_overlay__()
+                # Ya dibuja dados también por encima
+                self.__dibujar_dados_overlay__()
+            except Exception:
+                pass
             pygame.display.flip()
             self.__reloj__.tick(self.__fps__)
 
