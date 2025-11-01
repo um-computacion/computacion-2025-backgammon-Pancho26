@@ -1,5 +1,12 @@
+import importlib
+import importlib.util
+import sys
+import types
 import unittest
+from pathlib import Path
 from typing import Any, Dict, List
+
+import pytest
 
 from core.game import Game, BLANCO, NEGRO, BoardPort, DicePort
 
@@ -405,6 +412,73 @@ class TestGameEvenMoreCoverage(unittest.TestCase):
         # Dado sigue disponible (no se consumió)
         self.assertEqual(g.movimientos_disponibles(), [2])
 
+    def test_adapter_puede_mover_excepcion_cae_en_fallback(self):
+        class BoardRaises:
+            def puede_mover(self, jugador: str, valores: List[int]) -> bool:
+                raise RuntimeError("falló")
+
+        g = Game(board=BoardRaises(), dice=FakeDice([3]), jugador_inicial=BLANCO)
+        self.assertTrue(g.comenzar_turno())
+        # Fallback retorna bool(valores) => True
+        self.assertTrue(g.puede_mover())
+
+    def test_adapter_pasos_barra_negro_invalido(self):
+        class BareBoard:
+            pass
+
+        g = Game(board=BareBoard(), dice=FakeDice([3]), jugador_inicial=NEGRO)
+        self.assertTrue(g.comenzar_turno())
+        with self.assertRaises(ValueError):
+            g.realizar_movimiento(-1, 10)
+        self.assertEqual(g.movimientos_disponibles(), [3])
+
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_game_module_fallback_import_uses_local_definitions():
+    import core.game as original_game
+
+    path = Path(original_game.__file__)
+    saved_modules = {
+        key: sys.modules.get(key)
+        for key in ("core", "core.dice", "core.board", "core.game")
+    }
+
+    # Asegurar que no haya módulos residuales de ejecuciones previas
+    for key in ("core.dice", "core.board", "core.game_fallback_test"):
+        sys.modules.pop(key, None)
+
+    # Registrar un stub de 'core' que no sea package para forzar ImportError
+    stub_core = types.ModuleType("core")
+    sys.modules["core"] = stub_core
+
+    try:
+        spec = importlib.util.spec_from_file_location("core.game_fallback_test", path)
+        module = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(module)  # type: ignore[arg-type]
+
+        # Fallbacks deben haberse activado
+        assert module.BLANCO == "blanco"
+        assert module.NEGRO == "negro"
+
+        fallback_dice = module.Dice()
+        with pytest.raises(RuntimeError):
+            fallback_dice.tirar()
+        assert fallback_dice.obtener_valores() == []
+        assert fallback_dice.movimientos_restantes() == []
+        with pytest.raises(RuntimeError):
+            fallback_dice.consumir(2)
+        assert fallback_dice.quedan_movimientos() is False
+        fallback_dice.reiniciar_turno()
+        assert fallback_dice.a_dict() == {"valores": [], "restantes": []}
+    finally:
+        sys.modules.pop("core.game_fallback_test", None)
+        sys.modules.pop("core", None)
+        for key, module in saved_modules.items():
+            if module is not None:
+                sys.modules[key] = module
+            else:
+                sys.modules.pop(key, None)

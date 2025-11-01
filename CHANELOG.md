@@ -1,19 +1,4 @@
-# Changelog
 
-## Resumen
-- [0.3.0] - 2025-10-14: Completar con un resumen breve (por ejemplo: flujo de turnos, generación de movimientos, mejoras de Board/Dice, CLI/UI, docs y tests, fixes).
-- [0.2.0] - 2025-09-15: Clase Dice, métodos clave, tests y docs; ajustes menores y fixes de tirada.
-- [0.1.0] - 2025-09-07: Base del tablero (Board), movimientos, captura, borneo y tests.
-
-## [0.3.0] - 2025-10-14
-### Added
-- TODO: Lista todo lo nuevo (p. ej., clase Game/Turnos, generación de movimientos legales, comandos/CLI, validaciones, nuevas APIs, docs y tests).
-
-### Changed
-- TODO: Lista cambios en interfaces, firmas, comportamiento o refactors (p. ej., renombres, performance, estructura interna).
-
-### Fixed
-- TODO: Lista bugs corregidos (p. ej., validaciones de movimiento, estados inconsistentes, errores de serialización).
 
 ## [0.2.0] - 2025-09-15
 ### Added
