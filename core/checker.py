@@ -1,21 +1,28 @@
 """Checker value-object and color helpers for Backgammon domain."""
-from dataclasses import dataclass
+from dataclasses import FrozenInstanceError
 
 BLANCO = "blanco"
 NEGRO = "negro"
 COLORES_VALIDOS = {BLANCO, NEGRO}
 
 
-@dataclass(frozen=True)
 class Checker:
     """Representa una ficha con su color ('blanco' o 'negro')."""
 
-    color: str
+    __slots__ = ("__color__",)
 
-    def __post_init__(self):
-        """Valida el color al construir la ficha."""
-        if self.color not in COLORES_VALIDOS:
-            raise ValueError(f"Color inválido: {self.color}. Debe ser 'blanco' o 'negro'.")
+    def __init__(self, color: str) -> None:
+        self.validate_color(color)
+        object.__setattr__(self, "__color__", color)
+
+    @property
+    def color(self) -> str:
+        """Color actual de la ficha."""
+        return self.__color__
+
+    def __setattr__(self, name: str, value) -> None:
+        """Impide reasignar atributos para mantener inmutabilidad."""
+        raise FrozenInstanceError(f"Checker es inmutable; no se puede modificar '{name}'.")
 
     @staticmethod
     def validate_color(color: str) -> None:
