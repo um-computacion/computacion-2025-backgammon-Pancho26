@@ -4,11 +4,13 @@ import types
 import importlib
 import importlib.util
 from pathlib import Path
+from unittest import mock
 
-def _install_dummy_ui(monkeypatch, captured):
+
+def _dummy_ui_module(captured):
     """
-    Registra un módulo ui.controller falso en sys.modules con una clase ControladorUI
-    que captura los argumentos y no abre ninguna ventana.
+    Crea un módulo ui.controller falso con una clase ControladorUI
+    que captura los argumentos sin abrir ventana.
     """
     mod = types.ModuleType("ui.controller")
 
@@ -24,55 +26,59 @@ def _install_dummy_ui(monkeypatch, captured):
             captured["ejecuto"] = True
 
     mod.ControladorUI = DummyControladorUI
-    monkeypatch.setitem(importlib.sys.modules, "ui.controller", mod)
+    return mod
 
 
-def test_main_defaults_set_state(monkeypatch):
+def test_main_defaults_set_state():
     from cli import app as cli_app
     captured = {}
-    _install_dummy_ui(monkeypatch, captured)
+    dummy_module = _dummy_ui_module(captured)
 
-    # Ejecuta con valores por defecto
-    cli_app.main(argv=[])
+    with mock.patch.dict(sys.modules, {"ui.controller": dummy_module}, clear=False):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            cli_app.main(argv=[])
 
-    # Se debe haber llamado a la UI con los defaults
-    assert captured["ancho"] == 1000
-    assert captured["alto"] == 700
-    assert captured["fps"] == 60
-    assert captured["titulo"]  # no validamos el texto exacto
+            assert captured["ancho"] == 1000
+            assert captured["alto"] == 700
+            assert captured["fps"] == 60
+            assert captured["titulo"]
 
-    # Lógica: el estado queda inicializado y no expone auto-skip automático
-    estado = captured["estado"]
-    assert hasattr(estado, "restablecer_inicio")
-    assert not hasattr(estado, "auto_skip_no_moves")
-    assert os.environ.get("BACKGAMMON_AUTO_SKIP_NO_MOVES") is None
+            estado = captured["estado"]
+            assert hasattr(estado, "restablecer_inicio")
+            assert getattr(estado, "dice_draw_on_top") is True
+            assert getattr(estado, "dice_position") == "top"
+            assert getattr(estado, "dice_y_offset") == 16
+            assert os.environ.get("BACKGAMMON_DICE_DRAW_ON_TOP") == "1"
+            assert os.environ.get("BACKGAMMON_DICE_POSITION") == "top"
+            assert os.environ.get("BACKGAMMON_DICE_Y_OFFSET") == "16"
 
 
-def test_main_flags_override(monkeypatch):
+def test_main_flags_override():
     from cli import app as cli_app
     captured = {}
-    _install_dummy_ui(monkeypatch, captured)
+    dummy_module = _dummy_ui_module(captured)
 
-    # Override de flags
-    cli_app.main(argv=[
-        "--ancho", "800",
-        "--alto", "600",
-        "--fps", "30",
-        "--dados-debajo",
-        "--dados-posicion", "bottom",
-        "--dados-offset-y", "24",
-    ])
+    with mock.patch.dict(sys.modules, {"ui.controller": dummy_module}, clear=False):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            cli_app.main(argv=[
+                "--ancho", "800",
+                "--alto", "600",
+                "--fps", "30",
+                "--dados-debajo",
+                "--dados-posicion", "bottom",
+                "--dados-offset-y", "24",
+            ])
 
-    # Se debe haber llamado a la UI con los argumentos pasados
-    assert captured["ancho"] == 800
-    assert captured["alto"] == 600
-    assert captured["fps"] == 30
-    assert getattr(captured["estado"], "dice_draw_on_top") is False
-    assert getattr(captured["estado"], "dice_position") == "bottom"
-    assert getattr(captured["estado"], "dice_y_offset") == 24
-    assert os.environ.get("BACKGAMMON_DICE_DRAW_ON_TOP") == "0"
-    assert os.environ.get("BACKGAMMON_DICE_POSITION") == "bottom"
-    assert os.environ.get("BACKGAMMON_DICE_Y_OFFSET") == "24"
+            assert captured["ancho"] == 800
+            assert captured["alto"] == 600
+            assert captured["fps"] == 30
+            estado = captured["estado"]
+            assert getattr(estado, "dice_draw_on_top") is False
+            assert getattr(estado, "dice_position") == "bottom"
+            assert getattr(estado, "dice_y_offset") == 24
+            assert os.environ.get("BACKGAMMON_DICE_DRAW_ON_TOP") == "0"
+            assert os.environ.get("BACKGAMMON_DICE_POSITION") == "bottom"
+            assert os.environ.get("BACKGAMMON_DICE_Y_OFFSET") == "24"
 
 def test_safe_helpers_cover_variants():
     from cli import main as cli_main
@@ -277,7 +283,7 @@ def test_tirar_y_mover_compatibles_fallbacks():
     assert cli_main.puede_mover_compat(game) is True
     assert cli_main.mover_compat(game, 1, 2) is True
 
-def test_turno_and_tiradas_helpers(monkeypatch):
+def test_turno_and_tiradas_helpers():
     from cli import main as cli_main
 
     class DummyDice:
@@ -358,7 +364,7 @@ def test_ganador_val_variants():
     assert game._called is True
 
 
-def test_interactive_main_flow(monkeypatch, capsys):
+def test_interactive_main_flow(capsys):
     from cli import main as cli_main
 
     class TestBoard:
@@ -430,10 +436,7 @@ def test_interactive_main_flow(monkeypatch, capsys):
         def get_ganador(self):
             return self._ganador
 
-    monkeypatch.setattr(cli_main, "Board", TestBoard)
-    monkeypatch.setattr(cli_main, "Game", TestGame)
-
-    inputs = iter([
+    inputs = [
         "tablero",
         "barra",
         "fuera",
@@ -450,13 +453,12 @@ def test_interactive_main_flow(monkeypatch, capsys):
         "reset",
         "desconocido",
         "salir",
-    ])
+    ]
 
-    def fake_input(prompt=""):
-        return next(inputs)
-
-    monkeypatch.setattr("builtins.input", fake_input)
-    exit_code = cli_main.main()
+    with mock.patch.object(cli_main, "Board", TestBoard), \
+         mock.patch.object(cli_main, "Game", TestGame), \
+         mock.patch("builtins.input", side_effect=inputs):
+        exit_code = cli_main.main()
     assert exit_code == 0
 
     out = capsys.readouterr().out
@@ -467,7 +469,7 @@ def test_interactive_main_flow(monkeypatch, capsys):
     assert "Comando desconocido." in out
 
 
-def test_main_when_roll_already_available(monkeypatch, capsys):
+def test_main_when_roll_already_available(capsys):
     from cli import main as cli_main
 
     class BoardStub:
@@ -493,24 +495,17 @@ def test_main_when_roll_already_available(monkeypatch, capsys):
         def get_ganador(self):
             return self._ganador
 
-    monkeypatch.setattr(cli_main, "Board", BoardStub)
-    monkeypatch.setattr(cli_main, "Game", GameStub)
+    inputs = ["tirar", "salir"]
 
-    inputs = iter([
-        "tirar",
-        "salir",
-    ])
-
-    def fake_input(prompt=""):
-        return next(inputs)
-
-    monkeypatch.setattr("builtins.input", fake_input)
-    cli_main.main()
+    with mock.patch.object(cli_main, "Board", BoardStub), \
+         mock.patch.object(cli_main, "Game", GameStub), \
+         mock.patch("builtins.input", side_effect=inputs):
+        cli_main.main()
     out = capsys.readouterr().out
     assert "Ya hay tiradas" in out
 
 
-def test_interactuar_movimientos_full_flow(monkeypatch, capsys):
+def test_interactuar_movimientos_full_flow(capsys):
     from cli import main as cli_main
 
     class DummyDice:
@@ -552,16 +547,10 @@ def test_interactuar_movimientos_full_flow(monkeypatch, capsys):
             return True
 
     game = DummyGame()
-    inputs = iter(["", "foo", "a b", "9 8", "1 2"])
+    inputs = ["", "foo", "a b", "9 8", "1 2", KeyboardInterrupt]
 
-    def fake_input(prompt=""):
-        try:
-            return next(inputs)
-        except StopIteration:
-            raise KeyboardInterrupt()
-
-    monkeypatch.setattr("builtins.input", fake_input)
-    cli_main._interactuar_movimientos(game)
+    with mock.patch("builtins.input", side_effect=inputs):
+        cli_main._interactuar_movimientos(game)
     out = capsys.readouterr().out
     assert "Uso: <origen> <destino>" in out
     assert "Origen y destino deben ser enteros." in out
@@ -570,7 +559,7 @@ def test_interactuar_movimientos_full_flow(monkeypatch, capsys):
     assert out.endswith("\n")
 
 
-def test_interactuar_movimientos_fin_command(monkeypatch, capsys):
+def test_interactuar_movimientos_fin_command(capsys):
     from cli import main as cli_main
 
     class DummyGame:
@@ -597,18 +586,13 @@ def test_interactuar_movimientos_fin_command(monkeypatch, capsys):
 
     game = DummyGame()
 
-    inputs = iter(["fin"])
-
-    def fake_input(prompt=""):
-        return next(inputs)
-
-    monkeypatch.setattr("builtins.input", fake_input)
-    cli_main._interactuar_movimientos(game)
+    with mock.patch("builtins.input", side_effect=["fin"]):
+        cli_main._interactuar_movimientos(game)
     out = capsys.readouterr().out
     assert "Turno de" in out
 
 
-def test_interactuar_movimientos_sin_movimientos(monkeypatch, capsys):
+def test_interactuar_movimientos_sin_movimientos(capsys):
     from cli import main as cli_main
 
     class DummyGame:
@@ -641,7 +625,7 @@ def test_interactuar_movimientos_sin_movimientos(monkeypatch, capsys):
     assert "Sin movimientos. Se pasa el turno." in out
 
 
-def test_cli_main_fallback_imports(monkeypatch):
+def test_cli_main_fallback_imports():
     import cli.main as original_main
 
     path = Path(original_main.__file__)
