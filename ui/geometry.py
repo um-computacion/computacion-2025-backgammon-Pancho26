@@ -61,6 +61,7 @@ class MotorDisposicion:
         color_punta_a: Color,
         color_punta_b: Color,
         color_barra: Color,  # no se usa aquí, lo dibuja el render
+        offset_superior: int = 0,
     ) -> GeometriaTablero:
         """
         Construye la geometría del tablero.
@@ -75,16 +76,18 @@ class MotorDisposicion:
         Retorna:
             GeometriaTablero: Datos geométricos listos para renderizar.
         """
-        ancho_tablero = ancho - 2 * self.__margen__
-        alto_tablero = alto - 2 * self.__margen__
-        rect_tablero = pygame.Rect(self.__margen__, self.__margen__, ancho_tablero, alto_tablero)
+        offset_superior = max(0, offset_superior)
+        ancho_tablero = max(200, ancho - 2 * self.__margen__)
+        alto_disponible = max(200, alto - offset_superior - 2 * self.__margen__)
+        top = self.__margen__ + offset_superior
+        rect_tablero = pygame.Rect(self.__margen__, top, ancho_tablero, alto_disponible)
 
         ancho_barra = max(48, int(ancho_tablero * self.__fraccion_barra__))
         ancho_punta = (ancho_tablero - ancho_barra) / 12.0
-        altura_triangulo = (alto_tablero / 2.0) - 24
+        altura_triangulo = max(16.0, (alto_disponible / 2.0) - 24)
 
         barra_x = self.__margen__ + int(ancho_punta * 6)
-        rect_barra = pygame.Rect(barra_x, self.__margen__, ancho_barra, alto_tablero)
+        rect_barra = pygame.Rect(barra_x, top, ancho_barra, alto_disponible)
 
         triangulos: List[Triangulo] = []
         colores_puntas: List[Color] = []
@@ -99,16 +102,16 @@ class MotorDisposicion:
         # Triángulos superiores
         for col in range(12):
             x0 = self.__margen__ + col * ancho_punta + (ancho_barra if col >= 6 else 0)
-            base_y = self.__margen__
-            apice_y = self.__margen__ + altura_triangulo
+            base_y = top
+            apice_y = top + altura_triangulo
             triangulos.append(((x0, base_y), (x0 + ancho_punta, base_y), (x0 + ancho_punta / 2.0, apice_y)))
             colores_puntas.append(color_punta_a if (col % 2 == 0) else color_punta_b)
 
         # Triángulos inferiores
         for col in range(12):
             x0 = self.__margen__ + col * ancho_punta + (ancho_barra if col >= 6 else 0)
-            base_y = self.__margen__ + alto_tablero
-            apice_y = self.__margen__ + alto_tablero - altura_triangulo
+            base_y = top + alto_disponible
+            apice_y = top + alto_disponible - altura_triangulo
             triangulos.append(((x0, base_y), (x0 + ancho_punta, base_y), (x0 + ancho_punta / 2.0, apice_y)))
             colores_puntas.append(color_punta_a if (col % 2 == 0) else color_punta_b)
 

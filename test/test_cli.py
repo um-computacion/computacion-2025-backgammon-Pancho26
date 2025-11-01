@@ -27,12 +27,10 @@ def _install_dummy_ui(monkeypatch, captured):
     monkeypatch.setitem(importlib.sys.modules, "ui.controller", mod)
 
 
-def test_main_defaults_set_state_and_env(monkeypatch):
+def test_main_defaults_set_state(monkeypatch):
     from cli import app as cli_app
     captured = {}
     _install_dummy_ui(monkeypatch, captured)
-    # Asegurar entorno limpio
-    monkeypatch.delenv("BACKGAMMON_AUTO_SKIP_NO_MOVES", raising=False)
 
     # Ejecuta con valores por defecto
     cli_app.main(argv=[])
@@ -43,36 +41,38 @@ def test_main_defaults_set_state_and_env(monkeypatch):
     assert captured["fps"] == 60
     assert captured["titulo"]  # no validamos el texto exacto
 
-    # Lógica: auto_skip por defecto activado en estado y env
+    # Lógica: el estado queda inicializado y no expone auto-skip automático
     estado = captured["estado"]
-    assert getattr(estado, "auto_skip_no_moves", None) is True
-    assert os.environ.get("BACKGAMMON_AUTO_SKIP_NO_MOVES") == "1"
+    assert hasattr(estado, "restablecer_inicio")
+    assert not hasattr(estado, "auto_skip_no_moves")
+    assert os.environ.get("BACKGAMMON_AUTO_SKIP_NO_MOVES") is None
 
 
-def test_main_flags_override_and_env_off(monkeypatch):
+def test_main_flags_override(monkeypatch):
     from cli import app as cli_app
     captured = {}
     _install_dummy_ui(monkeypatch, captured)
-    monkeypatch.delenv("BACKGAMMON_AUTO_SKIP_NO_MOVES", raising=False)
 
     # Override de flags
     cli_app.main(argv=[
-        "--no-saltear-sin-movimientos",
         "--ancho", "800",
         "--alto", "600",
         "--fps", "30",
+        "--dados-debajo",
+        "--dados-posicion", "bottom",
+        "--dados-offset-y", "24",
     ])
 
     # Se debe haber llamado a la UI con los argumentos pasados
     assert captured["ancho"] == 800
     assert captured["alto"] == 600
     assert captured["fps"] == 30
-
-    # Lógica: auto_skip desactivado en estado y env
-    estado = captured["estado"]
-    assert getattr(estado, "auto_skip_no_moves", None) is False
-    assert os.environ.get("BACKGAMMON_AUTO_SKIP_NO_MOVES") == "0"
-
+    assert getattr(captured["estado"], "dice_draw_on_top") is False
+    assert getattr(captured["estado"], "dice_position") == "bottom"
+    assert getattr(captured["estado"], "dice_y_offset") == 24
+    assert os.environ.get("BACKGAMMON_DICE_DRAW_ON_TOP") == "0"
+    assert os.environ.get("BACKGAMMON_DICE_POSITION") == "bottom"
+    assert os.environ.get("BACKGAMMON_DICE_Y_OFFSET") == "24"
 
 def test_safe_helpers_cover_variants():
     from cli import main as cli_main
