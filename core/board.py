@@ -21,79 +21,79 @@ class Board:
     # pylint: disable=too-many-public-methods
 
     def __init__(self) -> None:
-        self._points: List[List[str]] = [[] for _ in range(NUM_POINTS)]
-        self._bar: Dict[str, List[str]] = {BLANCO: [], NEGRO: []}
-        self._borne_off: Dict[str, List[str]] = {BLANCO: [], NEGRO: []}
+        self.__points__: List[List[str]] = [[] for _ in range(NUM_POINTS)]
+        self.__bar_map__: Dict[str, List[str]] = {BLANCO: [], NEGRO: []}
+        self.__borne_off_map__: Dict[str, List[str]] = {BLANCO: [], NEGRO: []}
         # Exponer alias esperados por los tests
-        self.__posiciones__ = self._points
-        self.__barra__ = self._bar
-        self.__fichas_fuera__ = self._borne_off
+        self.__posiciones__ = self.__points__
+        self.__barra__ = self.__bar_map__
+        self.__fichas_fuera__ = self.__borne_off_map__
         self.reset_to_start()
 
     def reset_to_start(self) -> None:
         """Coloca las fichas en posiciones estándar de inicio."""
         # Reemplazar contenido en lugar de re-binder para mantener alias válidos
-        self._points[:] = [[] for _ in range(NUM_POINTS)]
-        self._bar.clear()
-        self._bar[BLANCO] = []
-        self._bar[NEGRO] = []
-        self._borne_off.clear()
-        self._borne_off[BLANCO] = []
-        self._borne_off[NEGRO] = []
+        self.__points__[:] = [[] for _ in range(NUM_POINTS)]
+        self.__bar_map__.clear()
+        self.__bar_map__[BLANCO] = []
+        self.__bar_map__[NEGRO] = []
+        self.__borne_off_map__.clear()
+        self.__borne_off_map__[BLANCO] = []
+        self.__borne_off_map__[NEGRO] = []
 
-        self._points[0]  = [BLANCO] * 2
-        self._points[11] = [BLANCO] * 5
-        self._points[16] = [BLANCO] * 3
-        self._points[18] = [BLANCO] * 5
+        self.__points__[0]  = [BLANCO] * 2
+        self.__points__[11] = [BLANCO] * 5
+        self.__points__[16] = [BLANCO] * 3
+        self.__points__[18] = [BLANCO] * 5
         # Negras
-        self._points[23] = [NEGRO] * 2
-        self._points[12] = [NEGRO] * 5
-        self._points[7]  = [NEGRO] * 3
-        self._points[5]  = [NEGRO] * 5
+        self.__points__[23] = [NEGRO] * 2
+        self.__points__[12] = [NEGRO] * 5
+        self.__points__[7]  = [NEGRO] * 3
+        self.__points__[5]  = [NEGRO] * 5
 
     def stack_at(self, index: int) -> List[str]:
         """Copia de la pila en el punto `index` (0..23)."""
         self._require_point(index)
-        return list(self._points[index])
+        return list(self.__points__[index])
 
     def bar(self, color: Optional[str] = None) -> Dict[str, List[str]] | List[str]:  # pylint: disable=disallowed-name
         """Copia de la(s) barra(s)."""
         if color is None:
-            return {c: list(p) for c, p in self._bar.items()}
+            return {c: list(p) for c, p in self.__bar_map__.items()}
         self._require_color(color)
-        return list(self._bar[color])
+        return list(self.__bar_map__[color])
 
     def borne_off(self, color: Optional[str] = None) -> Dict[str, List[str]] | List[str]:
         """Copia de las fichas borneadas."""
         if color is None:
-            return {c: list(p) for c, p in self._borne_off.items()}
+            return {c: list(p) for c, p in self.__borne_off_map__.items()}
         self._require_color(color)
-        return list(self._borne_off[color])
+        return list(self.__borne_off_map__[color])
 
     def bar_count(self, color: str) -> int:
         """Cantidad de fichas en la barra para el color dado."""
         self._require_color(color)
-        return len(self._bar[color])
+        return len(self.__bar_map__[color])
 
     def borne_off_count(self, color: str) -> int:
         """Cantidad de fichas borneadas (fuera) para el color dado."""
         self._require_color(color)
-        return len(self._borne_off[color])
+        return len(self.__borne_off_map__[color])
 
     def point_count(self, index: int) -> int:
         """Cantidad de fichas en el punto indicado (0..23)."""
         self._require_point(index)
-        return len(self._points[index])
+        return len(self.__points__[index])
 
     def top_color_at(self, index: int) -> Optional[str]:
         """Color del tope en el punto, o None si vacío."""
         self._require_point(index)
-        return self._points[index][-1] if self._points[index] else None
+        return self.__points__[index][-1] if self.__points__[index] else None
 
     def points_snapshot(self) -> List[dict]:
         """Resumen compacto de puntos (para UI/logs)."""
         out = []
-        for pile in self._points:
+        for pile in self.__points__:
             if pile:
                 out.append({"color": pile[0], "cantidad": len(pile)})
             else:
@@ -113,31 +113,31 @@ class Board:
         """Agrega una ficha del `color` al punto `index`."""
         self._require_point(index)
         self._require_color(color)
-        self._points[index].append(color)
+        self.__points__[index].append(color)
 
     def remove_from_point(self, index: int) -> Optional[str]:
         """Saca y devuelve la ficha del tope del punto, o None si vacío."""
         self._require_point(index)
-        if self._points[index]:
-            return self._points[index].pop()
+        if self.__points__[index]:
+            return self.__points__[index].pop()
         return None
 
     def push_to_bar(self, color: str) -> None:
         """Envía una ficha del `color` a la barra (captura)."""
         self._require_color(color)
-        self._bar[color].append(color)
+        self.__bar_map__[color].append(color)
 
     def pop_from_bar(self, color: str) -> Optional[str]:
         """Quita una ficha de la barra del `color`, o None si no hay."""
         self._require_color(color)
-        if self._bar[color]:
-            return self._bar[color].pop()
+        if self.__bar_map__[color]:
+            return self.__bar_map__[color].pop()
         return None
 
     def push_borne_off(self, color: str) -> None:
         """Agrega una ficha borneada (fuera) del `color`."""
         self._require_color(color)
-        self._borne_off[color].append(color)
+        self.__borne_off_map__[color].append(color)
 
     # --- Compatibilidad API en español (utilizado por tests) ---
     def inicializar_posiciones(self) -> None:
@@ -169,11 +169,11 @@ class Board:
         ficha = self.remove_from_point(origen)
         if ficha is None:
             return
-        destino_fichas = self._points[destino]
+        destino_fichas = self.__points__[destino]
         if destino_fichas and len(destino_fichas) == 1 and destino_fichas[0] != ficha:
-            capturado = self._points[destino].pop()
+            capturado = self.__points__[destino].pop()
             self.push_to_bar(capturado)
-        self._points[destino].append(ficha)
+        self.__points__[destino].append(ficha)
 
     def mover_desde_barra(self, color: str, destino: int) -> bool:
         """
@@ -181,22 +181,22 @@ class Board:
         Captura si hay una sola ficha rival.
         """
         self._require_color(color)
-        if not self._bar[color]:
+        if not self.__bar_map__[color]:
             return False
-        destino_fichas = self._points[destino]
+        destino_fichas = self.__points__[destino]
         # Bloqueado si hay 2+ del rival
         if destino_fichas and destino_fichas[0] != color and len(destino_fichas) > 1:
             return False
 
         # Sale de la barra
-        self._bar[color].pop()
+        self.__bar_map__[color].pop()
 
         # Captura si corresponde
         if destino_fichas and len(destino_fichas) == 1 and destino_fichas[0] != color:
-            capturado = self._points[destino].pop()
+            capturado = self.__points__[destino].pop()
             self.push_to_bar(capturado)
 
-        self._points[destino].append(color)
+        self.__points__[destino].append(color)
         return True
 
     def aplicar_movimiento(self, origen: int, destino: int, color: str) -> bool:
@@ -233,9 +233,9 @@ class Board:
         Útil para tests de invariantes (debe ser 15 por color).
         """
         def count_color(c: str) -> int:
-            points = sum(1 for pile in self._points for ch in pile if ch == c)
-            bar_len = len(self._bar[c])  # evitar nombre desaconsejado
-            off = len(self._borne_off[c])
+            points = sum(1 for pile in self.__points__ for ch in pile if ch == c)
+            bar_len = len(self.__bar_map__[c])  # evitar nombre desaconsejado
+            off = len(self.__borne_off_map__[c])
             return points + bar_len + off
 
         if color is None:
@@ -247,12 +247,12 @@ class Board:
         """Copia profunda liviana (para simulaciones/tests)."""
         nb = Board.__new__(Board)  # evita reset_to_start
         # pylint: disable=protected-access
-        nb._points = [list(p) for p in self._points]
-        nb._bar = {c: list(p) for c, p in self._bar.items()}
-        nb._borne_off = {c: list(p) for c, p in self._borne_off.items()}
-        nb.__posiciones__ = nb._points
-        nb.__barra__ = nb._bar
-        nb.__fichas_fuera__ = nb._borne_off
+        nb.__points__ = [list(p) for p in self.__points__]
+        nb.__bar_map__ = {c: list(p) for c, p in self.__bar_map__.items()}
+        nb.__borne_off_map__ = {c: list(p) for c, p in self.__borne_off_map__.items()}
+        nb.__posiciones__ = nb.__points__
+        nb.__barra__ = nb.__bar_map__
+        nb.__fichas_fuera__ = nb.__borne_off_map__
         return nb
 
     def _require_point(self, index: int) -> None:
@@ -277,19 +277,19 @@ class Board:
             return False
 
         def bloqueado(idx: int) -> bool:
-            pila = self._points[idx]
+            pila = self.__points__[idx]
             return bool(pila) and pila[0] != color and len(pila) > 1
 
         if origen == -1:
             # Desde barra: debe haber fichas en barra y destino no bloqueado
-            if not self._bar[color]:
+            if not self.__bar_map__[color]:
                 return False
             return not bloqueado(destino)
 
         # Origen en tablero
         if not 0 <= origen < NUM_POINTS:
             return False
-        pila_origen = self._points[origen]
+        pila_origen = self.__points__[origen]
         if not pila_origen or pila_origen[0] != color:
             return False
 
@@ -314,7 +314,7 @@ class Board:
         """True si existe algún movimiento legal con las tiradas dadas."""
         self._require_color(color)
         # Si hay fichas en barra, sólo se consideran reingresos
-        if self._bar[color]:
+        if self.__bar_map__[color]:
             for d in tiradas:
                 dest = self.calcular_destino_barra(color, d)
                 if 0 <= dest < NUM_POINTS and self.es_movimiento_legal(-1, dest, color):
@@ -323,7 +323,7 @@ class Board:
 
         # Sin fichas en barra: buscar cualquier origen válido que pueda mover
         for origen in range(NUM_POINTS):
-            pila = self._points[origen]
+            pila = self.__points__[origen]
             if not pila or pila[0] != color:
                 continue
             for d in tiradas:

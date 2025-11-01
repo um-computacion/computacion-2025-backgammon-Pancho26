@@ -1,6 +1,5 @@
 from __future__ import annotations
 import random
-from dataclasses import dataclass
 from typing import Iterable, List, Optional, TYPE_CHECKING
 
 from .checker import Checker, BLANCO, NEGRO
@@ -8,13 +7,19 @@ from .checker import Checker, BLANCO, NEGRO
 if TYPE_CHECKING:
     from .board import Board  # solo para type hints, evita ciclos de import
 
-@dataclass
 class Player:
-    color: str
-    nombre: Optional[str] = None
+    def __init__(self, color: str, nombre: Optional[str] = None):
+        Checker.validate_color(color)
+        self.__color__: str = color
+        self.__nombre__: Optional[str] = nombre
 
-    def __post_init__(self):
-        Checker.validate_color(self.color)
+    @property
+    def color(self) -> str:
+        return self.__color__
+
+    @property
+    def nombre(self) -> Optional[str]:
+        return self.__nombre__
 
     # Dados
     def tirar_dados(self, rng: random.Random | None = None) -> List[int]:

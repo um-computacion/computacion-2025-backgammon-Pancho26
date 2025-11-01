@@ -98,20 +98,24 @@ class BoardAdapter(BoardPort):
     """
 
     def __init__(self, raw_board: Any) -> None:
-        self._b = raw_board
+        self.__board__ = raw_board
+
+    @property
+    def _b(self) -> Any:  # compatibilidad con código existente
+        return self.__board__
 
     def mover(self, jugador: str, origen: int, destino: int) -> bool:
         """Aplica un movimiento usando la API disponible del Board."""
         try:
-            if hasattr(self._b, "es_movimiento_legal") and origen != -1:
-                if not self._b.es_movimiento_legal(origen, destino, jugador):
+            if hasattr(self.__board__, "es_movimiento_legal") and origen != -1:
+                if not self.__board__.es_movimiento_legal(origen, destino, jugador):
                     return False
-            if hasattr(self._b, "aplicar_movimiento"):
-                return bool(self._b.aplicar_movimiento(origen, destino, jugador))
-            if origen == -1 and hasattr(self._b, "mover_desde_barra"):
-                return bool(self._b.mover_desde_barra(jugador, destino))
-            if hasattr(self._b, "mover_ficha"):
-                self._b.mover_ficha(origen, destino)
+            if hasattr(self.__board__, "aplicar_movimiento"):
+                return bool(self.__board__.aplicar_movimiento(origen, destino, jugador))
+            if origen == -1 and hasattr(self.__board__, "mover_desde_barra"):
+                return bool(self.__board__.mover_desde_barra(jugador, destino))
+            if hasattr(self.__board__, "mover_ficha"):
+                self.__board__.mover_ficha(origen, destino)
                 return True
         except (RuntimeError, ValueError, AttributeError, TypeError):
             return False
@@ -120,8 +124,8 @@ class BoardAdapter(BoardPort):
     def puede_mover(self, jugador: str, valores: List[int]) -> bool:
         """True si el board indica que se puede mover con los valores dados."""
         try:
-            if hasattr(self._b, "puede_mover"):
-                return bool(self._b.puede_mover(jugador, list(valores)))
+            if hasattr(self.__board__, "puede_mover"):
+                return bool(self.__board__.puede_mover(jugador, list(valores)))
         except (RuntimeError, ValueError, AttributeError, TypeError):
             # Ignorar errores del board y caer al fallback
             pass
@@ -184,10 +188,48 @@ class Game:
         board_adapter_factory: Any = BoardAdapter,
     ) -> None:  # pylint: disable=too-many-arguments,too-many-positional-arguments
         """Inicializa el juego con tablero, dados y regla de movimiento."""
-        self.board: BoardPort = board if isinstance(board, BoardPort) else board_adapter_factory(board)
-        self.dice: DicePort = dice if dice is not None else Dice()  # type: ignore[assignment]
-        self.jugador_actual: str = jugador_inicial
-        self.movement_rule: MovementRule = movement_rule if movement_rule is not None else BasicMovementRule()
+        resolved_board = board if isinstance(board, BoardPort) else board_adapter_factory(board)
+        self.__board__: BoardPort | Any = resolved_board
+        self.__dice__: DicePort = dice if dice is not None else Dice()  # type: ignore[assignment]
+        self.__jugador_actual__: str = jugador_inicial
+        self.__movement_rule__: MovementRule = movement_rule if movement_rule is not None else BasicMovementRule()
+
+    @property
+    def board(self) -> BoardPort | Any:
+        return self.__board__
+
+    @board.setter
+    def board(self, value: Any) -> None:
+        if value is None:
+            self.__board__ = None  # type: ignore[assignment]
+        elif isinstance(value, BoardPort):
+            self.__board__ = value
+        else:
+            self.__board__ = BoardAdapter(value)
+
+    @property
+    def dice(self) -> DicePort:
+        return self.__dice__
+
+    @dice.setter
+    def dice(self, value: DicePort) -> None:
+        self.__dice__ = value
+
+    @property
+    def jugador_actual(self) -> str:
+        return self.__jugador_actual__
+
+    @jugador_actual.setter
+    def jugador_actual(self, value: str) -> None:
+        self.__jugador_actual__ = value
+
+    @property
+    def movement_rule(self) -> MovementRule:
+        return self.__movement_rule__
+
+    @movement_rule.setter
+    def movement_rule(self, value: MovementRule) -> None:
+        self.__movement_rule__ = value
 
     def comenzar_turno(self) -> bool:
         """Tira dados y retorna True si hay jugadas; si no, pasa el turno."""
@@ -241,5 +283,4 @@ class Game:
             "dados": self.dice.a_dict(),
             "movimientos_disponibles": self.movimientos_disponibles(),
         }
-
 
