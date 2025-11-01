@@ -76,6 +76,23 @@ class EstadoJuego:
         """
         return len(self.__movimientos_pendientes__) > 0
 
+    def puede_saltear_turno(self) -> bool:
+        """
+        Indica si el jugador actual puede saltear el turno de forma manual.
+        """
+        if self.__dados__ != (0, 0):
+            return True
+        return self.hay_movimientos()
+
+    def saltear_turno(self) -> bool:
+        """
+        Intenta saltear el turno actual. Retorna True si se pudo, False en caso contrario.
+        """
+        if not self.puede_saltear_turno():
+            return False
+        self.cambiar_turno()
+        return True
+
     def cambiar_turno(self) -> None:
         """
         Cambia el turno y limpia movimientos.

@@ -37,9 +37,6 @@ Parámetros opcionales:
   - `--ancho 1000`
   - `--alto 700`
   - `--fps 60`
-- Reglas de turno:
-  - `--saltear-sin-movimientos` habilita que, si un jugador no tiene movimientos legales, se pase automáticamente el turno (por defecto ON).
-  - `--no-saltear-sin-movimientos` desactiva ese comportamiento.
 - Visualización de dados (para evitar que queden tapados por fichas):
   - `--dados-encima` dibuja los dados por encima de las fichas (por defecto ON).
   - `--dados-debajo` dibuja los dados por debajo de las fichas.
@@ -48,16 +45,12 @@ Parámetros opcionales:
 
 Ejemplos:
 ```bash
-# Ventana estándar y pasar turno si no hay movimientos
-python cli/app.py --ancho 1000 --alto 700 --fps 60 --saltear-sin-movimientos
-
 # Poner los dados arriba, por encima de las fichas, con un pequeño desplazamiento
 python cli/app.py --dados-encima --dados-posicion top --dados-offset-y 16
 ```
 
 Notas:
 - También puedes controlar estas preferencias vía variables de entorno:
-  - `BACKGAMMON_AUTO_SKIP_NO_MOVES=1|0`
   - `BACKGAMMON_DICE_DRAW_ON_TOP=1|0`
   - `BACKGAMMON_DICE_POSITION=top|bottom`
   - `BACKGAMMON_DICE_Y_OFFSET=<px>`
@@ -71,4 +64,3 @@ Notas:
 ## Objetivo
 
 Explorar las reglas y estrategias del Backgammon y practicar conceptos de programación y arquitectura de software.
-

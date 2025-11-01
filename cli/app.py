@@ -24,7 +24,6 @@ class Aplicacion:
         ancho: int,
         alto: int,
         fps: int,
-        auto_skip_no_moves: bool = True,
         dice_on_top: bool = True,
         dice_position: str = "top",
         dice_y_offset: int = 16,
@@ -35,16 +34,12 @@ class Aplicacion:
         self.__ancho__ = ancho
         self.__alto__ = alto
         self.__fps__ = fps
-        self.__auto_skip_no_moves__ = auto_skip_no_moves
         # Preferencias de render de dados
         self.__dice_on_top__ = dice_on_top
         self.__dice_position__ = dice_position
         self.__dice_y_offset__ = dice_y_offset
 
         self.__estado__ = EstadoJuego()
-        # Config de salteo de turno si no hay movimientos
-        self.__estado__.auto_skip_no_moves = auto_skip_no_moves
-        os.environ["BACKGAMMON_AUTO_SKIP_NO_MOVES"] = "1" if auto_skip_no_moves else "0"
 
         # Exportar preferencias de dados a estado/env para que la UI las use
         setattr(self.__estado__, "dice_draw_on_top", dice_on_top)
@@ -79,20 +74,6 @@ def main(argv: Optional[list] = None) -> None:
     parser.add_argument("--ancho", type=int, default=1000, help="Ancho de ventana (pygame)")
     parser.add_argument("--alto", type=int, default=700, help="Alto de ventana (pygame)")
     parser.add_argument("--fps", type=int, default=60, help="FPS (pygame)")
-    # Activar/desactivar salteo de turno si no hay movimientos
-    parser.add_argument(
-        "--saltear-sin-movimientos",
-        dest="auto_skip_no_moves",
-        action="store_true",
-        default=True,
-        help="Si un jugador no tiene movimientos legales, se saltea su turno (por defecto ON)",
-    )
-    parser.add_argument(
-        "--no-saltear-sin-movimientos",
-        dest="auto_skip_no_moves",
-        action="store_false",
-        help="Desactiva el salteo automático de turno cuando no hay movimientos",
-    )
     # Control de render de dados para evitar que las fichas superiores los tapen
     parser.add_argument(
         "--dados-encima",
@@ -125,7 +106,6 @@ def main(argv: Optional[list] = None) -> None:
         ancho=args.ancho,
         alto=args.alto,
         fps=args.fps,
-        auto_skip_no_moves=args.auto_skip_no_moves,
         dice_on_top=args.dice_on_top,
         dice_position=args.dados_posicion if hasattr(args, "dados_posicion") else args.dice_position if hasattr(args, "dice_position") else "top",  # compat
         dice_y_offset=args.dados_offset_y if hasattr(args, "dados_offset_y") else args.dice_offset_y if hasattr(args, "dice_offset_y") else 16,

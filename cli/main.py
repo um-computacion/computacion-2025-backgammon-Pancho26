@@ -456,11 +456,13 @@ def main() -> int:
             else:
                 print("No se pudo reingresar (bloqueo o no coincide con dados).")
         elif cmd == "pasar":
-            if tiradas_val(game) and puede_mover_compat(game):
-                print("Aún hay movimientos posibles; no se puede pasar.")
-            else:
-                fin_turno_compat(game)
-                print(f"Turno de {turno_str(game)}.")
+            _safe_call_variants(
+                game,
+                ("saltear_turno", "terminar_turno", "end_turn", "next_turn", "pasar_turno"),
+                [((), {})],
+                default=None,
+            )
+            print(f"Turno de {turno_str(game)}.")
         else:
             print("Comando desconocido.")
 
