@@ -1,5 +1,9 @@
 # Backgammon 2025
 
+**Alumno:** Franco Furfuri  
+**Universidad:** Universidad de Mendoza  
+**Cohorte:** 2025
+
 Proyecto educativo de Backgammon para dos jugadores con interfaz en Pygame.
 
 ## Requisitos
@@ -64,3 +68,5 @@ Notas:
 ## Objetivo
 
 Explorar las reglas y estrategias del Backgammon y practicar conceptos de programación y arquitectura de software.
+
+---
