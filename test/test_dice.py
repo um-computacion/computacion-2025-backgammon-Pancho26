@@ -184,5 +184,22 @@ class TestDiceCoberturaAdicional(unittest.TestCase):
         self.assertEqual(d.obtener_valores(), [3,3,3,3])
         self.assertEqual(d.movimientos_restantes(), [3,3,3,3])
 
+    def test_tirado_flag_y_puede_consumir(self):
+        d = Dice()
+        self.assertFalse(d.tirado())
+        d.__valor1__ = 2
+        d.__valor2__ = 4
+        d.__tirado__ = True
+        d.__restantes__ = [2, 4]
+        self.assertTrue(d.tirado())
+        self.assertTrue(d.puede_consumir(2))
+        self.assertFalse(d.puede_consumir(5))
+
+    def test_valor_maximo(self):
+        d = Dice()
+        self.assertIsNone(d.valor_maximo())
+        d.__restantes__ = [1, 6, 3]
+        self.assertEqual(d.valor_maximo(), 6)
+
 if __name__ == "__main__":
     unittest.main()
