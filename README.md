@@ -2,7 +2,7 @@
 
 **Alumno:** Franco Furfuri  
 **Universidad:** Universidad de Mendoza  
-**Cohorte:** 2025
+**Año:** 2025
 
 Proyecto educativo de Backgammon para dos jugadores con interfaz en Pygame.
 
