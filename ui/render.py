@@ -124,6 +124,9 @@ class RenderizadorTablero:
                 pygame.draw.circle(self.__pantalla__, color, (int(centro_x), int(cy)), int(radio))
                 pygame.draw.circle(self.__pantalla__, t.__borde_ficha__, (int(centro_x), int(cy)), int(radio), width=2)
 
+        # Fichas capturadas en la barra central
+        self.__dibujar_barra__(geo.__rect_barra__, estado)
+
         # Etiquetas numéricas de puntos
         for i, tri in enumerate(geo.__triangulos__):
             texto = self.__fuente__.render(str(geo.__etiquetas__[i]), True, t.__texto__)
@@ -168,4 +171,85 @@ class RenderizadorTablero:
             pygame.draw.rect(self.__pantalla__, t.__marco__, box, width=2, border_radius=10)
             self.__pantalla__.blit(
                 texto, (box.centerx - texto.get_width() // 2, box.centery - texto.get_height() // 2)
+            )
+
+    def __dibujar_barra__(self, rect: pygame.Rect, estado) -> None:
+        """
+        Dibuja las fichas capturadas en la barra central.
+        Las blancas se apilan en la mitad superior y las negras en la inferior.
+        """
+        if estado is None:
+            return
+        try:
+            bar_blancas = int(getattr(estado, "__bar_blancas__", 0))
+        except Exception:
+            bar_blancas = 0
+        try:
+            bar_negras = int(getattr(estado, "__bar_negras__", 0))
+        except Exception:
+            bar_negras = 0
+        if bar_blancas <= 0 and bar_negras <= 0:
+            return
+
+        mitad_altura = rect.height // 2
+        area_sup = pygame.Rect(rect.left, rect.top, rect.width, mitad_altura)
+        area_inf = pygame.Rect(rect.left, rect.top + mitad_altura, rect.width, rect.height - mitad_altura)
+
+        if bar_blancas > 0:
+            self.__dibujar_pila_barra__(area_sup, bar_blancas, self.__tema__.__ficha_clara__, direccion=1)
+        if bar_negras > 0:
+            self.__dibujar_pila_barra__(area_inf, bar_negras, self.__tema__.__ficha_oscura__, direccion=-1)
+
+        # Etiquetas de conteo sobre la barra (xN)
+        texto_color_claro = self.__tema__.__texto__
+        texto_color_oscuro = (235, 235, 235)
+        if bar_blancas > 0:
+            etiqueta = self.__fuente__.render(f"x{bar_blancas}", True, texto_color_claro)
+            pos = etiqueta.get_rect()
+            pos.midtop = (rect.centerx, area_sup.top + 4)
+            self.__pantalla__.blit(etiqueta, pos)
+        if bar_negras > 0:
+            etiqueta = self.__fuente__.render(f"x{bar_negras}", True, texto_color_oscuro)
+            pos = etiqueta.get_rect()
+            pos.midbottom = (rect.centerx, area_inf.bottom - 4)
+            self.__pantalla__.blit(etiqueta, pos)
+
+    def __dibujar_pila_barra__(self, area: pygame.Rect, cantidad: int, color, direccion: int) -> None:
+        """
+        Dibuja una pila vertical de fichas en el área indicada.
+        `direccion` controla si se apilan hacia abajo (+1) o hacia arriba (-1).
+        """
+        if cantidad <= 0:
+            return
+        margen = 12
+        altura_util = max(12.0, area.height - 2 * margen)
+        radio = min(area.width * 0.4, altura_util / max(cantidad, 1) * 0.45)
+        radio = max(8.0, min(radio, area.width * 0.45))
+        # Paso entre centros; ajustar para que quepan dentro del área
+        paso_default = 2 * radio + max(2.0, radio * 0.25)
+        if cantidad > 1:
+            max_span = max(0.0, altura_util - 2 * radio)
+            paso_fit = max_span / (cantidad - 1) if max_span > 0 else radio * 0.8
+            paso = min(paso_default, paso_fit)
+        else:
+            paso = 0.0
+
+        if direccion > 0:
+            centro_y = area.top + margen + radio
+        else:
+            centro_y = area.bottom - margen - radio
+
+        limite_superior = area.top + margen + radio
+        limite_inferior = area.bottom - margen - radio
+        centro_x = area.centerx
+        for i in range(cantidad):
+            cy = centro_y + direccion * i * paso
+            cy = max(limite_superior, min(limite_inferior, cy))
+            pygame.draw.circle(self.__pantalla__, color, (int(centro_x), int(round(cy))), int(round(radio)))
+            pygame.draw.circle(
+                self.__pantalla__,
+                self.__tema__.__borde_ficha__,
+                (int(centro_x), int(round(cy))),
+                int(round(radio)),
+                width=2,
             )
