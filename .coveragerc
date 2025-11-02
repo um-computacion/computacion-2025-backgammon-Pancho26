@@ -1,0 +1,31 @@
+[run]
+branch = True
+source =
+    core
+    cli
+omit =
+    ui/*
+    juego/*
+    test/*
+    tests/*
+    cli/app.py
+    cli/state.py
+    */.venv/*
+    venv/*
+    */site-packages/*
+
+[report]
+exclude_lines =
+    if __name__ == "__main__":
+    pragma: no cover
+    raise NotImplementedError
+include =
+    core/*
+    cli/main.py
+skip_empty = True
+
+[xml]
+output = coverage.xml
+
+[html]
+directory = htmlcov
