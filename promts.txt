@@ -1,0 +1,19 @@
+test/test_player.py:110: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+core/player.py:73: in mover
+    else board.calcular_destino(origen, self.color, paso)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test.test_player.FakeBoard object at 0x78f08a5f4f20>, origen = 5, color = 'negro', paso = 2
+
+    def calcular_destino(self, origen, color, paso):
+        if self.raise_on_calc:
+>           raise Exception("calc error")
+E           Exception: calc error
+
+test/test_player.py:33: Exception
+======================================================================== short test summary info ========================================================================
+FAILED test/test_player.py::test_mover_con_excepcion_en_calculo - Exception: calc error
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 113 passed in 0.72s tengo este error

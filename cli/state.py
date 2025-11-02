@@ -206,11 +206,9 @@ class EstadoJuego:
             return False
         # Distancia exacta al fuera
         if jugador == "BLANCAS":
-            # salir por 0
             if hasta < 1:
                 return (desde == pasos) or (desde == punto_lejano and desde < pasos)
         else:
-            # salir por 25
             if hasta > 24:
                 dist = 25 - desde
                 return (dist == pasos) or (desde == punto_lejano and dist < pasos)
