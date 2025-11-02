@@ -55,25 +55,25 @@ class DicePort(Protocol):
     """Contrato de dados usado por Game."""
     def tirar(self) -> None:
         """Tira los dados (efecto lateral en el estado)."""
-        ...
+        raise NotImplementedError
     def obtener_valores(self) -> List[int]:
         """Valores obtenidos para el turno actual (dobles => 4)."""
-        ...
+        raise NotImplementedError
     def movimientos_restantes(self) -> List[int]:
         """Valores aún no consumidos en este turno."""
-        ...
+        raise NotImplementedError
     def consumir(self, v: int) -> None:
         """Consume un valor 'v' de los movimientos restantes."""
-        ...
+        raise NotImplementedError
     def quedan_movimientos(self) -> bool:
         """True si quedan valores por consumir."""
-        ...
+        raise NotImplementedError
     def reiniciar_turno(self) -> None:
         """Reinicia el estado de los dados para un nuevo turno."""
-        ...
+        raise NotImplementedError
     def a_dict(self) -> Dict[str, Any]:
         """Serializa el estado de los dados."""
-        ...
+        raise NotImplementedError
 
 
 @runtime_checkable
@@ -81,13 +81,13 @@ class BoardPort(Protocol):
     """Contrato del tablero usado por Game."""
     def mover(self, jugador: str, origen: int, destino: int) -> bool:
         """Aplica un movimiento en el tablero. Retorna True si se aplicó."""
-        ...
+        raise NotImplementedError
     def puede_mover(self, jugador: str, valores: List[int]) -> bool:
         """True si existe alguna jugada válida con los valores provistos."""
-        ...
+        raise NotImplementedError
     def pasos(self, jugador: str, origen: int, destino: int) -> int:
         """Cantidad de pasos positivos entre origen y destino (o desde barra)."""
-        ...
+        raise NotImplementedError
 
 
 class BoardAdapter(BoardPort):
@@ -156,8 +156,12 @@ class BoardAdapter(BoardPort):
 
 class MovementRule(Protocol):
     """Estrategia para calcular pasos y elegir el dado a consumir."""
-    def calcular_pasos(self, board: BoardPort, jugador: str, origen: int, destino: int) -> int: ...
-    def seleccionar_dado(self, disponibles: List[int], pasos: int) -> int: ...
+    def calcular_pasos(self, board: BoardPort, jugador: str, origen: int, destino: int) -> int:
+        """Devuelve la cantidad de pasos que implica un movimiento."""
+        raise NotImplementedError
+    def seleccionar_dado(self, disponibles: List[int], pasos: int) -> int:
+        """Elige qué dado consumir dado el movimiento calculado."""
+        raise NotImplementedError
 
 
 class BasicMovementRule:
@@ -188,18 +192,23 @@ class Game:
         board_adapter_factory: Any = BoardAdapter,
     ) -> None:  # pylint: disable=too-many-arguments,too-many-positional-arguments
         """Inicializa el juego con tablero, dados y regla de movimiento."""
-        resolved_board = board if isinstance(board, BoardPort) else board_adapter_factory(board)
+        resolved_board = (
+            board if isinstance(board, BoardPort) else board_adapter_factory(board)
+        )
         self.__board__: BoardPort | Any = resolved_board
         self.__dice__: DicePort = dice if dice is not None else Dice()  # type: ignore[assignment]
         self.__jugador_actual__: str = jugador_inicial
-        self.__movement_rule__: MovementRule = movement_rule if movement_rule is not None else BasicMovementRule()
+        default_rule = movement_rule if movement_rule is not None else BasicMovementRule()
+        self.__movement_rule__: MovementRule = default_rule
 
     @property
     def board(self) -> BoardPort | Any:
+        """Tablero (o adaptador) actualmente asociado al juego."""
         return self.__board__
 
     @board.setter
     def board(self, value: Any) -> None:
+        """Permite inyectar un tablero o adaptador compatible."""
         if value is None:
             self.__board__ = None  # type: ignore[assignment]
         elif isinstance(value, BoardPort):
@@ -209,26 +218,32 @@ class Game:
 
     @property
     def dice(self) -> DicePort:
+        """Acceso a los dados usados por el juego."""
         return self.__dice__
 
     @dice.setter
     def dice(self, value: DicePort) -> None:
+        """Permite reemplazar la implementación de dados."""
         self.__dice__ = value
 
     @property
     def jugador_actual(self) -> str:
+        """Color del jugador que tiene el turno."""
         return self.__jugador_actual__
 
     @jugador_actual.setter
     def jugador_actual(self, value: str) -> None:
+        """Actualiza el jugador en turno."""
         self.__jugador_actual__ = value
 
     @property
     def movement_rule(self) -> MovementRule:
+        """Estrategia utilizada para consumir dados."""
         return self.__movement_rule__
 
     @movement_rule.setter
     def movement_rule(self, value: MovementRule) -> None:
+        """Actualiza la estrategia de consumo de dados."""
         self.__movement_rule__ = value
 
     def comenzar_turno(self) -> bool:
@@ -283,4 +298,3 @@ class Game:
             "dados": self.dice.a_dict(),
             "movimientos_disponibles": self.movimientos_disponibles(),
         }
-

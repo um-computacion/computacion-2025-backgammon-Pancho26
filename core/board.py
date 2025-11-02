@@ -101,11 +101,13 @@ class Board:
         return out
 
     def is_home_point(self, color: str, index: int) -> bool:
+        """True si el punto pertenece a la casa del color indicado."""
         self._require_color(color)
         self._require_point(index)
         return index in HOME_RANGE[color]
 
     def direction(self, color: str) -> int:
+        """Dirección de avance (sentido) para el color dado."""
         self._require_color(color)
         return DIRECTION[color]
 

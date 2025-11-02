@@ -9,16 +9,17 @@ COLORES_VALIDOS = {BLANCO, NEGRO}
 class Checker:
     """Representa una ficha con su color ('blanco' o 'negro')."""
 
-    __slots__ = ("__color__",)
+    _color: str
+    __slots__ = ("_color",)
 
     def __init__(self, color: str) -> None:
         self.validate_color(color)
-        object.__setattr__(self, "__color__", color)
+        object.__setattr__(self, "_color", color)
 
     @property
     def color(self) -> str:
         """Color actual de la ficha."""
-        return self.__color__
+        return self._color
 
     def __setattr__(self, name: str, value) -> None:
         """Impide reasignar atributos para mantener inmutabilidad."""

@@ -1,36 +1,50 @@
-import os, sys
+"""CLI helpers y compatibilidad para interactuar con el Backgammon en consola."""
+
+from __future__ import annotations
+
+import os
+import sys
+from typing import Any, Sequence
+
 # Asegurar que el root del proyecto esté en sys.path para poder importar 'core'
 _PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if _PROJECT_ROOT not in sys.path:
-	 sys.path.insert(0, _PROJECT_ROOT)
+    sys.path.insert(0, _PROJECT_ROOT)
 
 # Importar constantes con fallback a strings por si core no las expone
 try:
     from core import BLANCO, NEGRO
-except Exception:
+except ImportError:
     BLANCO, NEGRO = "blanco", "negro"
 
-from core.player import Player
-from core.game import Game
+from core.game import Game  # pylint: disable=wrong-import-position
 # Alinear constantes y obtener Board desde core.board
 try:
-    from core.board import Board, BLANCO as BOARD_BLANCO, NEGRO as BOARD_NEGRO
+    from core.board import Board, BLANCO as BOARD_BLANCO, NEGRO as BOARD_NEGRO  # pylint: disable=wrong-import-position
     BLANCO, NEGRO = BOARD_BLANCO, BOARD_NEGRO
-except Exception:
-    from core.board import Board
+except ImportError:
+    from core.board import Board  # pylint: disable=wrong-import-position
 
 # Helpers de compatibilidad para distintos nombres en Game
-def _safe_call_methods(obj, names, *args, default=None, **kwargs):
+def _safe_call_methods(
+    obj: Any,
+    names: Sequence[str],
+    *args,
+    default=None,
+    **kwargs,
+):
+    """Invoca en orden los métodos nombrados, devolviendo el primero que funcione."""
     for name in names:
         m = getattr(obj, name, None)
         if callable(m):
             try:
                 return m(*args, **kwargs)
-            except Exception:
+            except (AttributeError, TypeError, ValueError, RuntimeError):
                 pass
     return default
 
 def _coerce_str(val):
+    """Normaliza distintos tipos a string amigable para el CLI."""
     if val is None:
         return None
     if isinstance(val, str):
@@ -46,6 +60,7 @@ def _coerce_str(val):
 
 # Extras: helpers para acceder al Board real desde Game.board (BoardAdapter)
 def _get_raw_board(game):
+    """Obtiene el tablero "real" detrás de Game.board o adaptadores."""
     b = getattr(game, "tablero", None) or getattr(game, "board", None)
     if b is None:
         return None
@@ -53,6 +68,7 @@ def _get_raw_board(game):
     return raw or b
 
 def _board_snapshot(board):
+    """Devuelve un snapshot de puntos en formato estándar para render."""
     snap = _safe_call_methods(board, ("points_snapshot", "obtener_estado_puntos"))
     if snap is not None:
         return snap
@@ -69,6 +85,7 @@ def _board_snapshot(board):
     return None
 
 def _board_counts(board):
+    """Cuenta fichas en barra y borne-off a partir de diferentes APIs."""
     # Devuelve dicts de cuentas para barra y fuera
     barra = None
     fuera = None
@@ -86,25 +103,65 @@ def _board_counts(board):
                 "negro": len(d.get("negro", [])),
             }
         return None
-    return to_counts(barra) or {"blanco": 0, "negro": 0}, to_counts(fuera) or {"blanco": 0, "negro": 0}
+    barra_counts = to_counts(barra) or {"blanco": 0, "negro": 0}
+    fuera_counts = to_counts(fuera) or {"blanco": 0, "negro": 0}
+    return barra_counts, fuera_counts
 
-def _fmt_point(idx, cell):
+def _board_winner(board) -> Any:
+    """Intenta inferir el ganador consultando distintas APIs del tablero."""
+    winner = _safe_call_methods(
+        board,
+        ("ganador", "get_ganador", "winner", "get_winner"),
+    )
+    if winner:
+        return winner
+    for color in (BLANCO, NEGRO):
+        has_won = _safe_call_methods(
+            board,
+            ("ha_ganado", "has_won", "is_winner"),
+            color,
+            default=None,
+        )
+        if isinstance(has_won, bool):
+            if has_won:
+                return color
+        elif has_won:
+            return has_won
+    return None
+
+def _fmt_point(point: int, cell):
+    """Formatea un punto en forma compacta para impresión."""
     c = cell.get("color")
     n = cell.get("cantidad", 0)
     if not c or n == 0:
-        return f"{idx:02}:__"
+        return f"{point:02}:__"
     letter = "W" if str(c).lower().startswith("b") else "B"
-    return f"{idx:02}:{letter}{n}"
+    return f"{point:02}:{letter}{n}"
+
+def _point_to_board_index(point: int) -> int:
+    """Convierte un punto 1..24 (estándar) a índice interno 0..23."""
+    if point < 0:
+        return point
+    if 1 <= point <= 24:
+        return 24 - point
+    return point
 
 def _render_board_ascii(snapshot, barra_counts, fuera_counts):
-    # Top: 23..12, Bottom: 0..11
-    top = " ".join(_fmt_point(i, snapshot[i]) for i in range(23, 11, -1))
-    bot = " ".join(_fmt_point(i, snapshot[i]) for i in range(0, 12))
-    bar = f"Barra W:{barra_counts['blanco']} B:{barra_counts['negro']}"
+    """Construye representación ASCII del tablero con barras."""
+    def idx_from_point(point: int) -> int:
+        return 24 - point
+
+    top_points = list(range(13, 25))  # 13..24 izquierda->derecha
+    bot_points = list(range(12, 0, -1))  # 12..1 izquierda->derecha
+
+    top = " ".join(_fmt_point(p, snapshot[idx_from_point(p)]) for p in top_points)
+    bot = " ".join(_fmt_point(p, snapshot[idx_from_point(p)]) for p in bot_points)
+    barra_label = f"Barra W:{barra_counts['blanco']} B:{barra_counts['negro']}"
     off = f"Fuera W:{fuera_counts['blanco']} B:{fuera_counts['negro']}"
-    return "\n".join([top, bot, bar + " | " + off])
+    return "\n".join([top, bot, barra_label + " | " + off])
 
 def tablero_compacto_str(game) -> str:
+    """Obtiene representación textual compacta del tablero."""
     # Primero, probar métodos directos ya existentes
     val = _safe_call_methods(
         game,
@@ -121,39 +178,69 @@ def tablero_compacto_str(game) -> str:
             barra_counts, fuera_counts = _board_counts(board)
             return _render_board_ascii(snap, barra_counts, fuera_counts)
         # Último intento: métodos comunes del objeto board
-        for name in ("compacto", "compact", "to_compact", "to_compact_str", "ascii", "to_ascii", "render", "to_string", "mostrar", "mostrar_tablero", "pretty", "dump"):
+        for name in (
+            "compacto",
+            "compact",
+            "to_compact",
+            "to_compact_str",
+            "ascii",
+            "to_ascii",
+            "render",
+            "to_string",
+            "mostrar",
+            "mostrar_tablero",
+            "pretty",
+            "dump",
+        ):
             m = getattr(board, name, None)
             if callable(m):
                 try:
                     s2 = _coerce_str(m())
                     if s2:
                         return s2
-                except Exception:
+                except (AttributeError, TypeError, ValueError, RuntimeError):
                     pass
     return "<tablero no disponible>"
 
 def estado_barras_str(game) -> str:
+    """Devuelve estado textual de la barra para cada color."""
     board = _get_raw_board(game)
     if board is not None:
         barra_counts, _ = _board_counts(board)
-        return f"Barra -> blancas: {barra_counts['blanco']} | negras: {barra_counts['negro']}"
+        return (
+            "Barra -> blancas: "
+            f"{barra_counts['blanco']} | negras: {barra_counts['negro']}"
+        )
     # fallback anterior
     val = _safe_call_methods(game, ("estado_barras", "barras_str", "barras", "bar_state"))
     s = _coerce_str(val)
     return s if s else "<barras no disponibles>"
 
 def estado_fuera_str(game) -> str:
+    """Devuelve estado textual de fichas borneadas."""
     board = _get_raw_board(game)
     if board is not None:
         _, fuera_counts = _board_counts(board)
-        return f"Fuera -> blancas: {fuera_counts['blanco']} | negras: {fuera_counts['negro']}"
+        return (
+            "Fuera -> blancas: "
+            f"{fuera_counts['blanco']} | negras: {fuera_counts['negro']}"
+        )
     # fallback anterior
-    val = _safe_call_methods(game, ("estado_fuera", "fuera_str", "bear_off_str", "fuera", "borne_off_state"))
+    val = _safe_call_methods(
+        game,
+        ("estado_fuera", "fuera_str", "bear_off_str", "fuera", "borne_off_state"),
+    )
     s = _coerce_str(val)
     return s if s else "<fuera no disponible>"
 
 # Variantes de calls seguros con distintas firmas
-def _safe_call_variants(obj, names, arg_variants, default=None):
+def _safe_call_variants(
+    obj: Any,
+    names: Sequence[str],
+    arg_variants: Sequence[tuple[Sequence[Any], dict[str, Any]]],
+    default=None,
+):
+    """Intenta múltiples combinaciones de argumentos contra los nombres provistos."""
     for name in names:
         m = getattr(obj, name, None)
         if callable(m):
@@ -162,15 +249,35 @@ def _safe_call_variants(obj, names, arg_variants, default=None):
                     return m(*args, **kwargs)
                 except TypeError:
                     continue
-                except Exception:
+                except (AttributeError, ValueError, RuntimeError):
                     continue
     return default
 
 # Turno: obtener valor y formatear
 def turno_val(game):
-    val = _safe_call_methods(game, ("turno", "get_turno", "turno_actual", "jugador_en_turno", "current_turn", "get_current_turn", "current_player", "get_current_player"))
+    """Obtiene el objeto que representa el turno actual."""
+    val = _safe_call_methods(
+        game,
+        (
+            "turno",
+            "get_turno",
+            "turno_actual",
+            "jugador_en_turno",
+            "current_turn",
+            "get_current_turn",
+            "current_player",
+            "get_current_player",
+        ),
+    )
     if val is None:
-        for attr in ("turno", "turno_actual", "current_turn", "current_player", "jugador_en_turno", "jugador_actual"):
+        for attr in (
+            "turno",
+            "turno_actual",
+            "current_turn",
+            "current_player",
+            "jugador_en_turno",
+            "jugador_actual",
+        ):
             v = getattr(game, attr, None)
             if v is not None:
                 val = v
@@ -178,6 +285,7 @@ def turno_val(game):
     return val
 
 def turno_color(game):
+    """Normaliza el turno a un string (color o nombre)."""
     t = turno_val(game)
     if t is None:
         return None
@@ -192,13 +300,18 @@ def turno_color(game):
     return nombre or str(t)
 
 def turno_str(game):
+    """Representación amigable del turno."""
     s = turno_color(game)
     return s if s else "<turno?>"
 
 # Tiradas: leer y formatear
 def tiradas_val(game):
+    """Obtiene la lista de tiradas disponibles, explorando diferentes APIs."""
     # 1) Métodos en Game
-    v = _safe_call_methods(game, ("movimientos_disponibles", "get_movimientos", "get_moves", "dice_moves"))
+    v = _safe_call_methods(
+        game,
+        ("movimientos_disponibles", "get_movimientos", "get_moves", "dice_moves"),
+    )
     if v is not None:
         return v
     # 2) Atributo dice dentro de Game
@@ -215,11 +328,13 @@ def tiradas_val(game):
     return None
 
 def tiradas_str(game):
+    """Representación textual de las tiradas restantes."""
     v = tiradas_val(game)
     return str(v) if v else "-"
 
 # Tirar dados (compat nombres)
 def tirar_dados_compat(game):
+    """Invoca la acción de tirar dados usando las distintas APIs conocidas."""
     # Usar comenzar_turno si existe (Game moderno)
     res = _safe_call_variants(
         game,
@@ -241,8 +356,14 @@ def tirar_dados_compat(game):
 
 # Puede mover (con o sin color)
 def puede_mover_compat(game):
+    """Determina si el juego reporta movimientos disponibles."""
     # Game actual expone puede_mover() sin args
-    res = _safe_call_variants(game, ("puede_mover", "has_moves", "can_move"), [((), {})], default=None)
+    res = _safe_call_variants(
+        game,
+        ("puede_mover", "has_moves", "can_move"),
+        [((), {})],
+        default=None,
+    )
     if res is not None:
         return bool(res)
     # ...fallback anterior con color...
@@ -257,49 +378,94 @@ def puede_mover_compat(game):
 
 # Mover ficha (con o sin color)
 def mover_compat(game, origen, destino):
+    """Aplica un movimiento usando la API más conveniente disponible."""
+    norm_origen = _point_to_board_index(origen)
+    norm_destino = _point_to_board_index(destino)
     # Game moderno: realizar_movimiento(origen, destino)
-    ok = _safe_call_variants(
-        game,
-        ("realizar_movimiento",),
-        [((origen, destino), {})],
-        default=None,
-    )
-    if isinstance(ok, bool):
-        return ok
+    for args in (
+        ((norm_origen, norm_destino), {}),
+        ((origen, destino), {}),
+    ):
+        ok = _safe_call_variants(
+            game,
+            ("realizar_movimiento",),
+            [args],
+            default=None,
+        )
+        if isinstance(ok, bool):
+            if ok:
+                return True
+            continue
+        if ok is not None:
+            return bool(ok)
+
     # ...fallback a APIs antiguas...
     color = turno_color(game)
-    return bool(_safe_call_variants(
-        game,
-        ("mover", "mover_ficha", "move", "move_piece", "apply_move"),
-        [((color, origen, destino), {}), ((origen, destino), {})],
-        default=False,
-    ))
+    move_variants = [
+        ((color, norm_origen, norm_destino), {}),
+        ((color, origen, destino), {}),
+        ((norm_origen, norm_destino), {}),
+        ((origen, destino), {}),
+    ]
+    for args in move_variants:
+        ok = _safe_call_variants(
+            game,
+            ("mover", "mover_ficha", "move", "move_piece", "apply_move"),
+            [args],
+            default=None,
+        )
+        if isinstance(ok, bool):
+            if ok:
+                return True
+            continue
+        if ok is not None:
+            return bool(ok)
+    return False
 
 # Fin de turno si corresponde / avanzar turno
 def fin_turno_compat(game):
+    """Intenta finalizar el turno si no quedan dados disponibles."""
     # Si no quedan tiradas, intentar terminar_turno()
     if not tiradas_val(game):
-        done = _safe_call_variants(
+        _safe_call_variants(
             game,
             ("terminar_turno", "end_turn", "next_turn", "pasar_turno"),
             [((), {})],
             default=None,
         )
-        return True if done is None or isinstance(done, bool) else True
+        return True
     return False
 
 # Nuevo helper: compat para obtener el ganador sin romper si no existe
 def ganador_val(game):
-    val = _safe_call_methods(game, ("ganador", "get_ganador", "winner", "get_winner"))
-    if val:
-        return val
+    """Obtiene el ganador si el juego lo expone por distintos nombres."""
+    board = _get_raw_board(game)
+    winner = _board_winner(board) if board is not None else None
+    if winner:
+        return winner
+    winner = _safe_call_methods(
+        game,
+        ("ganador", "get_ganador", "winner", "get_winner"),
+    )
+    if winner:
+        return winner
     for attr in ("ganador", "winner"):
         v = getattr(game, attr, None)
         if v:
             return v
-    ended = _safe_call_methods(game, ("terminado", "finalizado", "fin", "is_over", "game_over"))
+    ended = _safe_call_methods(
+        game,
+        ("terminado", "finalizado", "fin", "is_over", "game_over"),
+    )
     if ended:
-        for attr in ("ganador", "winner", "ganador_color", "winner_color", "victor", "victoria"):
+        for attr in (
+            "ganador",
+            "winner",
+            "ganador_color",
+            "winner_color",
+            "victor",
+            "victoria",
+        ):
             v = getattr(game, attr, None)
             if v:
                 return v
@@ -307,9 +473,13 @@ def ganador_val(game):
 
 # NUEVO: interacción para mover inmediatamente tras tirar
 def _interactuar_movimientos(game):
+    """Bucle interactivo para consumir movimientos restantes."""
     if not tiradas_val(game) or not puede_mover_compat(game):
         return
-    print("Ingresá los movimientos como: <origen> <destino> (origen=-1 para barra). Escribí 'fin' para terminar.")
+    print(
+        "Ingresá los movimientos como: <origen> <destino> (origen=-1 para barra). "
+        "Escribí 'fin' para terminar."
+    )
     while tiradas_val(game):
         if not puede_mover_compat(game):
             print("Sin movimientos. Se pasa el turno.")
@@ -331,8 +501,9 @@ def _interactuar_movimientos(game):
             print("Uso: <origen> <destino> (origen=-1 para barra)")
             continue
         try:
-            origen = int(parts[0]); destino = int(parts[1])
-        except Exception:
+            origen = int(parts[0])
+            destino = int(parts[1])
+        except ValueError:
             print("Origen y destino deben ser enteros.")
             continue
 
@@ -342,12 +513,13 @@ def _interactuar_movimientos(game):
             if fin_turno_compat(game):
                 print(f"Turno de {turno_str(game)}.")
                 break
-            else:
-                print(f"Tiradas restantes: {tiradas_str(game)}")
+            print(f"Tiradas restantes: {tiradas_str(game)}")
         else:
             print("Movimiento inválido (bloqueo o no coincide con dados).")
 
 def main() -> int:
+    """Loop principal del CLI interactivo."""
+    # pylint: disable=too-many-branches,too-many-statements
     # Asegurar orden correcto: inicializar Game con un Board real
     # blanco = Player(nombre="Blancas", color=BLANCO)
     # negro = Player(nombre="Negras", color=NEGRO)
@@ -356,7 +528,11 @@ def main() -> int:
     game = Game(board=board, jugador_inicial=BLANCO)
 
     print("Backgammon CLI")
-    print("Comandos: tablero, barra, fuera, tirar, mover, mover_barra, turno, pasar, reset, salir")
+    print(f"Colores: {BLANCO} vs {NEGRO}")
+    print(
+        "Comandos: tablero, barra, fuera, tirar, mover, mover_barra, "
+        "turno, pasar, reset, salir"
+    )
     # Mostrar tablero inicial para validar visualmente
     print(tablero_compacto_str(game))
 
@@ -380,7 +556,8 @@ def main() -> int:
 
         if cmd in ("salir", "exit", "quit"):
             break
-        elif cmd == "tablero":
+
+        if cmd == "tablero":
             print(tablero_compacto_str(game))
         elif cmd == "barra":
             print(estado_barras_str(game))
@@ -390,11 +567,16 @@ def main() -> int:
             print(f"Turno: {turno_str(game)} | Tiradas: {tiradas_str(game)}")
         elif cmd == "reset":
             # Reiniciar tablero y dados, y volver a BLANCO
-            _safe_call_methods(game.board, ("inicializar_posiciones", "reset_to_start", "reset"))
+            raw_board = _get_raw_board(game)
+            _safe_call_methods(
+                raw_board or getattr(game, "board", None),
+                ("inicializar_posiciones", "reset_to_start", "reset"),
+            )
+            _safe_call_methods(game, ("reset", "reiniciar"))
             _safe_call_methods(game.dice, ("reiniciar_turno",))
             try:
                 game.jugador_actual = BLANCO
-            except Exception:
+            except AttributeError:
                 pass
             print("Partida reiniciada.")
             print(tablero_compacto_str(game))
@@ -418,8 +600,9 @@ def main() -> int:
                 print("Uso: mover <origen> <destino> (origen=-1 para barra)")
                 continue
             try:
-                origen = int(args[0]); destino = int(args[1])
-            except Exception:
+                origen = int(args[0])
+                destino = int(args[1])
+            except ValueError:
                 print("Origen y destino deben ser enteros.")
                 continue
             if not tiradas_val(game):
@@ -440,7 +623,7 @@ def main() -> int:
                 continue
             try:
                 destino = int(args[0])
-            except Exception:
+            except ValueError:
                 print("Destino debe ser entero.")
                 continue
             if not tiradas_val(game):
